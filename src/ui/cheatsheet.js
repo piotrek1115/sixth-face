@@ -93,7 +93,7 @@ export function renderCheatSheet() {
       <tr><td class="k">Step</td><td><b>1 AP</b> · one tile, any direction · top face unchanged</td></tr>
       <tr><td class="k">Roll</td><td><b>2 AP</b> · one tile, any direction · <b>changes the top face</b></td></tr>
       <tr><td class="k">Tip in place</td><td><b>2 AP</b> · stays put · changes the top face — the only way to re-arm while boxed in</td></tr>
-      <tr><td class="k">Face ⟳ ⟲</td><td><b>1 AP</b> · turns which way you look · top face unchanged</td></tr>
+      <tr><td class="k">Face ⟳ ⟲</td><td><b>1 AP</b> · turns which way you look · top face unchanged · click a <b>corner</b> of the die: right corners turn clockwise, left corners anticlockwise</td></tr>
       <tr><td class="k">Attack</td><td><b>1 AP</b> · only if an attack face is up, straight ahead</td></tr>
     </table>
 

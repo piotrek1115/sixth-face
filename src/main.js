@@ -38,11 +38,9 @@ function addUnitView(unit) {
   view.dieMesh.position.set(x, DIE_HALF, z);
   view.syncFacing(x, z);
   view.syncRing(x, z);
-  scene.add(
-    view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow,
-    view.activeLabel, view.nameLabel, view.ring,
-    ...Object.values(view.edgeHints)
-  );
+  // Same list that removes them — keeping two copies is how the corner turn
+  // handles ended up drawn, positioned and simply never added to the scene.
+  scene.add(...sceneParts(view));
   views.set(unit.id, view);
   return view;
 }
@@ -52,6 +50,7 @@ function sceneParts(view) {
     view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow,
     view.activeLabel, view.nameLabel, view.ring,
     ...Object.values(view.edgeHints),
+    ...Object.values(view.cornerTurns),
   ];
 }
 
@@ -91,15 +90,25 @@ const tilePreview = makePlate(1.0, 0.3, 14);
 tilePreview.visible = false;
 scene.add(tilePreview);
 
-function showTilePreview(tileMesh, label) {
+/** Label the hovered move tile with what going there actually costs you.
+ *
+ *  A Roll is only offered when it can be paid for; with 1 AP left the tile
+ *  would otherwise promise a face the player cannot buy. In that case the
+ *  tile advertises the Step it CAN afford, whose face is simply the one
+ *  already up. Returns the face the label names, so the tooltip can explain
+ *  the same thing the plate just promised. */
+function showTilePreview(tileMesh, unit, dir) {
+  const rollable = game.canRoll(unit, dir);
+  const face = rollable ? unit.topAfterTurning(dir) : unit.topLabel;
   tilePreview.visible = true;
   tilePreview.position.set(tileMesh.position.x, 0.5, tileMesh.position.z);
-  drawPlate(tilePreview, `Roll → ${label}`, {
+  drawPlate(tilePreview, `${rollable ? 'Roll' : 'Step'} → ${face}`, {
     size: 32,
     bg: 'rgba(14,20,24,0.85)',
     fg: '#8fe3f5',
     border: 'rgba(93,201,225,0.6)',
   });
+  return face;
 }
 
 let lastPointer = { x: 0, y: 0 };
@@ -114,11 +123,13 @@ tooltipEl.className = 'faceTip';
 tooltipEl.hidden = true;
 document.getElementById('app').appendChild(tooltipEl);
 
-function showTooltip(label) {
+function showTooltip(label, { reposition = true } = {}) {
   const rule = FACE_RULES[label];
   if (!rule) return;
   tooltipEl.innerHTML = `<b>${label}</b>${rule}`;
+  tooltipEl.dataset.label = label;
   tooltipEl.hidden = false;
+  if (!reposition) return;
   const pad = 14;
   tooltipEl.style.left = Math.min(lastPointer.x + pad, window.innerWidth - 300) + 'px';
   tooltipEl.style.top = Math.min(lastPointer.y + pad, window.innerHeight - 90) + 'px';
@@ -137,19 +148,33 @@ function pickActiveLabel(ev) {
   return raycaster.intersectObject(view.activeLabel, false)[0] ? selectedUnit.topLabel : null;
 }
 
-/** Called every frame: opens the tooltip once the pointer has settled. */
+/** Which face the thing under the cursor is currently naming, if any. Read
+ *  fresh every frame rather than captured on hover: the tile under a
+ *  stationary cursor can change its mind — spend your second AP and it stops
+ *  offering a Roll and offers a Step instead — and an open tooltip that kept
+ *  explaining the face you can no longer afford would be a lie. */
+function tooltipLabelNow() {
+  if (hoverKind === 'edge' && hoveredEdge) return hoveredEdge.unit.topAfterTurning(hoveredEdge.dir);
+  // Same grammar as the tabs: the plate names a face, settling on it explains
+  // that face — whichever of Roll/Step the tile ended up offering.
+  if (hoverKind === 'tile' && hoveredTileFace) return hoveredTileFace;
+  if (hoverKind === 'active' && selectedUnit) return selectedUnit.topLabel;
+  return null;
+}
+
+/** Called every frame: opens the tooltip once the pointer has settled, and
+ *  keeps an open one honest. */
 function updateTooltip() {
-  if (!hoverKind || !tooltipEl.hidden) return;
-  if (performance.now() - hoverSince < HOVER_EXPLAIN_MS) return;
-  if (hoverKind === 'edge' && hoveredEdge && selectedUnit) {
-    showTooltip(selectedUnit.topAfterTurning(hoveredEdge.dir));
-  } else if (hoverKind === 'tile' && hoveredTileDir && selectedUnit) {
-    // Same grammar as the edge tabs: the plate names the face a roll here
-    // would bring up, and settling on it explains what that face does.
-    showTooltip(selectedUnit.topAfterTurning(hoveredTileDir));
-  } else if (hoverKind === 'active' && selectedUnit) {
-    showTooltip(selectedUnit.topLabel);
+  const label = tooltipLabelNow();
+  if (!label) {
+    hideTooltip();
+    return;
   }
+  const opening = tooltipEl.hidden;
+  if (opening && performance.now() - hoverSince < HOVER_EXPLAIN_MS) return;
+  // Reposition only on the way in, so a tooltip that merely re-words itself
+  // does not jump out from under the cursor that is reading it.
+  if (opening || tooltipEl.dataset.label !== label) showTooltip(label, { reposition: opening });
 }
 
 let selectedUnit = null;
@@ -161,12 +186,42 @@ let deployChoice = null;
 // after the pointer has settled, so sweeping across the board stays quiet.
 let hoveredEdge = null;
 let hoveredTileDir = null;
+let hoveredTileFace = null;
+let hoveredDieUnit = null;
+let hoveredCorner = null;
 let hoverSince = 0;
 let hoverKind = null;
+
+/** Tip tabs and turn handles, for every die on the board.
+ *
+ *  Deliberately NOT gated on whose turn it is: reading what a face would do
+ *  is not a move, and being unable to check an orc's die while playing humans
+ *  made the player memorise a table the game could simply show them. Tabs
+ *  appear on the selected die and on whichever die the cursor is over — and
+ *  since they now sit ON the top face, pointing at a die is already pointing
+ *  at its tabs, so there is nothing extra to aim for.
+ *
+ *  The turn handles are different: they are an action, not a reminder, so
+ *  they only appear where turning is actually legal. */
+function refreshDieHints() {
+  for (const [id, view] of views) {
+    const unit = view.unit;
+    const isSel = !!selectedUnit && id === selectedUnit.id;
+    const show = isSel || (hoveredDieUnit && hoveredDieUnit.id === id);
+    const w = gridToWorld(unit.x, unit.z);
+    view.setEdgeHints(!!show && unit.alive, w.x, w.z, {
+      hoveredDir: hoveredEdge?.unit?.id === id ? hoveredEdge.dir : null,
+      mutedDir: isSel ? hoveredTileDir : null,
+      actionable: isSel && game.canRollInPlace(unit),
+    });
+    view.setCornerTurns(isSel && game.canTurn(unit), w.x, w.z, hoveredCorner?.unitId === id ? hoveredCorner.corner : null);
+  }
+}
 
 function refreshHighlights() {
   highlightPool.forEach((h) => (h.visible = false));
   attackHighlight.visible = false;
+  refreshDieHints();
   if (!selectedUnit || !game.canAct(selectedUnit)) return;
   let i = 0;
   for (const dir of ['N', 'E', 'S', 'W']) {
@@ -182,13 +237,6 @@ function refreshHighlights() {
       h.material.opacity = 0.35;
     }
   }
-  // Tip hints ride on the selected unit only, and only when it could pay.
-  for (const [id, view] of views) {
-    const isSel = selectedUnit && id === selectedUnit.id && game.canRollInPlace(selectedUnit);
-    const w = isSel ? gridToWorld(selectedUnit.x, selectedUnit.z) : null;
-    view.setEdgeHints(!!isSel, w?.x ?? 0, w?.z ?? 0, hoveredEdge?.dir ?? null);
-  }
-
   const target = game.findAttackTarget(selectedUnit);
   if (target && game.canAttack(selectedUnit)) {
     const { x, z } = gridToWorld(target.x, target.z);
@@ -374,6 +422,7 @@ function fadeOutUnit(unit) {
     view.nameLabel.visible = false;
     view.ring.visible = false;
     view.setEdgeHints(false);
+    view.setCornerTurns(false);
     if (t < 1) requestAnimationFrame(step);
     else {
       scene.remove(...sceneParts(view));
@@ -581,15 +630,29 @@ canvas.addEventListener('pointerdown', (ev) => {
   }
 });
 
-/** The tip hint plate under the cursor, if any. */
+/** The tip tab under the cursor, on ANY die — reading an enemy's face is
+ *  allowed; acting on it is what gets checked later. */
 function pickEdgeHint(ev) {
-  if (!selectedUnit) return null;
-  const view = views.get(selectedUnit.id);
-  if (!view) return null;
-  const plates = Object.values(view.edgeHints).filter((p) => p.visible);
+  const plates = [];
+  for (const view of views.values()) for (const p of Object.values(view.edgeHints)) if (p.visible) plates.push(p);
+  if (!plates.length) return null;
   setPointerFromEvent(ev);
-  const hit = plates.length ? raycaster.intersectObjects(plates, false)[0] : null;
-  return hit ? { dir: hit.object.userData.tipDir, object: hit.object } : null;
+  const hit = raycaster.intersectObjects(plates, false)[0];
+  if (!hit) return null;
+  const unit = game.units.find((u) => u.id === hit.object.userData.unitId);
+  return unit ? { dir: hit.object.userData.tipDir, unit } : null;
+}
+
+/** The corner turn handle under the cursor, if any. */
+function pickCornerTurn(ev) {
+  const plates = [];
+  for (const view of views.values()) for (const p of Object.values(view.cornerTurns)) if (p.visible) plates.push(p);
+  if (!plates.length) return null;
+  setPointerFromEvent(ev);
+  const hit = raycaster.intersectObjects(plates, false)[0];
+  if (!hit) return null;
+  const { unitId, corner, turnCw } = hit.object.userData;
+  return { unitId, corner, cw: turnCw };
 }
 
 canvas.addEventListener('pointermove', (ev) => {
@@ -600,41 +663,58 @@ canvas.addEventListener('pointermove', (ev) => {
   const hovered = pickHighlightedTile(ev);
   for (const h of highlightPool) h.material.opacity = h === hovered ? 0.75 : 0.35;
 
-  // Hovering a move tile previews the face a ROLL there would turn up — the
-  // one thing you cannot work out by looking at the board.
+  // Hovering a move tile spells out what going there costs and what you end
+  // up holding — the one thing you cannot work out by looking at the board.
+  const tileDir = hovered ? hovered.userData.dir : null;
   if (hovered && selectedUnit) {
-    const dir = hovered.userData.dir;
-    showTilePreview(hovered, selectedUnit.topAfterTurning(dir));
+    hoveredTileFace = showTilePreview(hovered, selectedUnit, tileDir);
   } else {
     tilePreview.visible = false;
+    hoveredTileFace = null;
   }
 
-  const edge = pickEdgeHint(ev);
-  const tileDir = hovered ? hovered.userData.dir : null;
-  const changed = edge?.dir !== hoveredEdge?.dir || tileDir !== hoveredTileDir;
+  const corner = pickCornerTurn(ev);
+  const edge = corner ? null : pickEdgeHint(ev);
+  const die = pickDieUnit(ev);
+  const changed =
+    edge?.dir !== hoveredEdge?.dir ||
+    edge?.unit?.id !== hoveredEdge?.unit?.id ||
+    tileDir !== hoveredTileDir ||
+    corner?.corner !== hoveredCorner?.corner;
   if (changed) {
     hoverSince = performance.now();
     hideTooltip();
   }
+  const dieChanged = die?.id !== hoveredDieUnit?.id;
   hoveredEdge = edge;
   hoveredTileDir = tileDir;
+  hoveredCorner = corner;
+  hoveredDieUnit = die;
   hoverKind = edge ? 'edge' : hovered ? 'tile' : pickActiveLabel(ev) ? 'active' : null;
-  if (edge) refreshHighlights();
+  canvas.style.cursor = corner ? 'pointer' : '';
+  if (edge || corner || changed || dieChanged) refreshHighlights();
 });
 
 canvas.addEventListener('pointerleave', () => {
   hoveredEdge = null;
   hoveredTileDir = null;
+  hoveredTileFace = null;
+  hoveredCorner = null;
+  hoveredDieUnit = null;
   hoverKind = null;
   tilePreview.visible = false;
+  canvas.style.cursor = '';
   hideTooltip();
+  refreshHighlights();
 });
 
 // Double-clicking an edge hint tips the die that way — the hint already told
 // you exactly which face you are buying.
 canvas.addEventListener('dblclick', (ev) => {
   const edge = pickEdgeHint(ev);
-  if (!edge || !selectedUnit) return;
+  // Tabs are readable on every die but only actionable on the selected one,
+  // in turn, with the AP to pay — reading is free, tipping is not.
+  if (!edge || !selectedUnit || edge.unit.id !== selectedUnit.id) return;
   ev.preventDefault();
   cancelPendingClick();
   if (animateRollInPlace(selectedUnit, edge.dir)) afterAction();
@@ -673,6 +753,16 @@ canvas.addEventListener('pointerup', (ev) => {
     if (tile) handleDeployClick(tile.x, tile.z);
     return;
   }
+  // Corner handles turn the die where you click it: a single click, because
+  // unlike a tile a corner means exactly one thing and needs no Step/Roll
+  // disambiguation.
+  const corner = pickCornerTurn(ev);
+  if (corner && selectedUnit && corner.unitId === selectedUnit.id) {
+    cancelPendingClick();
+    if (animateTurn(selectedUnit, corner.cw)) afterAction();
+    return;
+  }
+
   const dir = pickHighlightedDir(ev);
   if (dir && selectedUnit) {
     const dragDist = pointerDownPos ? Math.hypot(ev.clientX - pointerDownPos.x, ev.clientY - pointerDownPos.y) : 0;

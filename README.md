@@ -30,21 +30,27 @@ Potem **? Rules** — pełna ściąga z rozrysowanymi kostkami. Potem zagraj sam
 
 ### Sterowanie
 
-Kliknij kość, żeby ją wybrać. Wokół niej pojawiają się **cztery fioletowe
-zakładki** — po jednej na krawędź — i każda pokazuje **nazwę ścianki, która
-wyjdzie na wierzch**, jeśli przewrócisz kość w tę stronę. Podwójne kliknięcie
-zakładki wykonuje ten obrót w miejscu (2 AP, kość zostaje na polu).
+Najedź na dowolną kość — **także przeciwnika i nie w swojej turze** — a na
+czterech krawędziach jej górnej ścianki pojawią się **fioletowe zakładki**.
+Każda pokazuje **nazwę ścianki, która wyjdzie na wierzch**, jeśli przewrócisz
+kość w tę stronę. Podglądanie jest zawsze darmowe; działa tylko na własnej
+kości w swojej turze — **podwójne kliknięcie** zakładki wykonuje ten obrót w
+miejscu (2 AP, kość zostaje na polu). Zakładki cudzych kości są przygaszone,
+żeby było widać, że to tylko ściąga.
+
+W rogach wybranej kości siedzą **złote strzałki obrotu**: dwa prawe rogi
+obracają kość w prawo, dwa lewe w lewo (1 AP, ścianka bez zmian). Klikasz ten
+róg, w którą stronę chcesz ją pchnąć.
 
 Pola dostępne do ruchu podświetlają się na turkusowo. Najechanie na pole
-pokazuje na nim **`Roll → nazwa`** — ściankę, którą dostaniesz, jeśli tam
-dojedziesz rollem. Jedno kliknięcie = **Step** (1 AP, ścianka bez zmian),
-podwójne = **Roll** (2 AP, ścianka się zmienia). Przeciągnięcie zawsze robi
-Step. Pole ataku jest czerwone.
+pisze na nim wprost, co się stanie: **`Roll → nazwa`**, a jeśli nie stać cię
+na rolla — **`Step → nazwa`** z aktualną ścianką. Jedno kliknięcie = **Step**
+(1 AP), podwójne = **Roll** (2 AP). Przeciągnięcie zawsze robi Step. Pole
+ataku jest czerwone.
 
 **Zatrzymaj kursor na sekundę** na czymkolwiek, co nazywa ściankę — na
 zakładce, na podświetlonym polu albo na nazwie aktywnej ścianki nad kością —
-a pojawi się jedno zdanie, co ta ścianka robi. Panel po prawej ma te same
-akcje jako zwykłe przyciski, jeśli wolisz nie zgadywać.
+a pojawi się jedno zdanie, co ta ścianka robi.
 
 ---
 
@@ -75,7 +81,7 @@ dwie tanie akcje jedną jednostką, albo po jednej dwiema.
 | **Step** | 1 AP | jedno pole, dowolny kierunek, ścianka **bez zmian** |
 | **Roll** | 2 AP | jedno pole, dowolny kierunek, **zmienia ściankę** |
 | **Tip in place** | 2 AP | zostaje na polu, **zmienia ściankę** |
-| **Face ⟳⟲** | 1 AP | obrót kierunku patrzenia, ścianka bez zmian |
+| **Face ⟳⟲** | 1 AP | obrót kierunku patrzenia, ścianka bez zmian (rogi kości) |
 | **Attack** | 1 AP | tylko gdy na wierzchu jest ścianka ataku, prosto przed siebie |
 
 Rozdzielenie **Step / Roll** to sedno ekonomii: ruch jest tani, ale zmiana

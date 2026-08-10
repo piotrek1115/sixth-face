@@ -21,7 +21,7 @@ export function createHud(root, actions) {
     <div class="deployPanel" id="deployPanel" hidden></div>
     <div class="cheatSheet" id="cheatSheet" hidden></div>
     <div class="log" id="log"></div>
-    <div class="hint" id="hint"><b>Select a die</b> and four purple tabs appear around it — each names the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> to tip (2 AP, stays put).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> (2 AP). Hover anything and hold still for a second to see what it does.</div>
+    <div class="hint" id="hint"><b>Point at any die</b> — even an enemy's — and four purple tabs appear on its edges, each naming the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> on your own die to tip it (2 AP, stays put); the gold <b>corner arrows</b> turn it to face that way (1 AP).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> (2 AP) — the tile spells out which one you can afford. Hover anything and hold still for a second to see what it does.</div>
   `;
 
   root.querySelector('#endTurnBtn').addEventListener('click', () => actions.onEndTurn());
@@ -148,8 +148,7 @@ function renderUnitPanel(el, game, unit, actions) {
       ${['N', 'E', 'S', 'W'].map((dir) => stepButton(game, unit, dir, canAct)).join('')}
       <div class="actionGroupLabel">Roll · 2 AP · changes top face, moves a tile</div>
       ${['N', 'E', 'S', 'W'].map((dir) => rollButton(game, unit, dir, canAct)).join('')}
-      <button data-act="turn" data-cw="1" ${!canAct ? 'disabled' : ''}>Face ⟳</button>
-      <button data-act="turn" data-cw="0" ${!canAct ? 'disabled' : ''}>Face ⟲</button>
+      <div class="actionGroupLabel">Face · 1 AP · click a corner of the die</div>
       <button data-act="attack" class="attack ${preview?.lethal || preview?.wounds ? 'lethal' : ''}" ${!canAttackNow ? 'disabled' : ''}>Attack (${topLabel})</button>
     </div>
     ${renderAttackPreview(preview)}

@@ -97,6 +97,75 @@ export function drawPlate(
   mesh.userData.texture.needsUpdate = true;
 }
 
+/** The rotation glyph for the corner turn handles: an open arc with an
+ *  arrowhead, drawn rather than typed. A '⟳' character would be at the mercy
+ *  of whatever font the machine happens to have. */
+export function drawTurnGlyph(mesh, clockwise, { hot = false } = {}) {
+  const canvas = mesh.userData.canvas;
+  const ctx = canvas.getContext('2d');
+  const s = canvas.width;
+  const c = s / 2;
+  const r = s * 0.3;
+  ctx.clearRect(0, 0, s, s);
+
+  ctx.beginPath();
+  ctx.arc(c, c, s * 0.42, 0, Math.PI * 2);
+  ctx.fillStyle = hot ? 'rgba(255,212,121,0.95)' : 'rgba(14,12,18,0.72)';
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = hot ? '#ffffff' : 'rgba(255,212,121,0.5)';
+  ctx.stroke();
+
+  const ink = hot ? '#241c08' : '#ffd479';
+  // Three quarters of a circle, so the gap plus the arrowhead read as "turn".
+  const from = -Math.PI * 0.55;
+  const to = from + Math.PI * 1.5 * (clockwise ? 1 : -1);
+  ctx.beginPath();
+  ctx.arc(c, c, r, from, to, !clockwise);
+  ctx.lineWidth = s * 0.1;
+  ctx.strokeStyle = ink;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Arrowhead on the moving end, tangent to the arc.
+  const tip = { x: c + Math.cos(to) * r, y: c + Math.sin(to) * r };
+  const tangent = to + (clockwise ? Math.PI / 2 : -Math.PI / 2);
+  const head = s * 0.13;
+  ctx.beginPath();
+  for (const spread of [Math.PI * 0.78, -Math.PI * 0.78]) {
+    ctx.lineTo(tip.x + Math.cos(tangent + spread) * head, tip.y + Math.sin(tangent + spread) * head);
+  }
+  ctx.lineTo(tip.x + Math.cos(tangent) * head * 0.5, tip.y + Math.sin(tangent) * head * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = ink;
+  ctx.fill();
+
+  mesh.userData.texture.needsUpdate = true;
+}
+
+// Where each tip tab sits on the top face, and how its text is spun so it
+// stays readable. The side tabs run ALONG their edge (long axis north-south)
+// with the lettering turned to face the middle of the die, which is the only
+// way a label that lives on a 1.44-wide face can be read at all.
+const EDGE_TAB = {
+  N: { spin: 0, size: [1.02, 0.26] },
+  S: { spin: 0, size: [1.02, 0.26] },
+  E: { spin: Math.PI / 2, size: [1.02, 0.26] },
+  W: { spin: -Math.PI / 2, size: [1.02, 0.26] },
+};
+const EDGE_TAB_INSET = 0.57; // centre-to-tab, so a 0.26-thick tab sits flush inside the 0.72 half-face
+
+// Turn handles live at the corners: the two eastern ones turn the die
+// clockwise, the two western ones anticlockwise, matching which way your hand
+// would push that corner.
+const TURN_CORNERS = {
+  NE: { x: 1, z: -1, cw: true },
+  SE: { x: 1, z: 1, cw: true },
+  NW: { x: -1, z: -1, cw: false },
+  SW: { x: -1, z: 1, cw: false },
+};
+const CORNER_INSET = 0.5;
+
 /** Everything needed to render + animate one unit's die + facing marker + selection ring. */
 export class UnitView {
 
@@ -175,11 +244,29 @@ export class UnitView {
     // one thing that matters: which face you would actually get.
     this.edgeHints = {};
     for (const dir of ['N', 'E', 'S', 'W']) {
-      const plate = makePlate(0.86, 0.3, 13);
+      const { spin, size } = EDGE_TAB[dir];
+      const plate = makePlate(size[0], size[1], 13);
+      // rotation.z spins the lettering inside the plate's own plane BEFORE it
+      // is laid flat (Euler XYZ applies Z first), so the side tabs end up
+      // running along their edge with the text turned inward.
+      plate.rotation.z = spin;
       plate.visible = false;
       plate.userData.tipDir = dir;
       plate.userData.unitId = unit.id;
       this.edgeHints[dir] = plate;
+    }
+
+    // Corner turn handles — TURN used to live in a pair of HUD buttons, which
+    // told you nothing about which way the die would swing.
+    this.cornerTurns = {};
+    for (const [corner, spec] of Object.entries(TURN_CORNERS)) {
+      const plate = makePlate(0.36, 0.36, 14);
+      plate.visible = false;
+      plate.userData.turnCw = spec.cw;
+      plate.userData.unitId = unit.id;
+      plate.userData.corner = corner;
+      drawTurnGlyph(plate, spec.cw);
+      this.cornerTurns[corner] = plate;
     }
 
     this.ring = new Mesh(
@@ -193,22 +280,43 @@ export class UnitView {
     this.deadFade = 0; // 0 = alive/opaque, 1 = fully faded
   }
 
-  /** Show (or hide) the four tip hints, each labelled with the face that a tip
-   *  that way would bring up. `hoveredDir` gets the highlighted treatment. */
-  setEdgeHints(visible, worldX, worldZ, hoveredDir = null) {
+  /** Show (or hide) the four tip tabs, each sitting ON its edge of the top
+   *  face and labelled with the face a tip that way would bring up.
+   *
+   *  `hoveredDir` gets the highlighted treatment. `mutedDir` is hidden
+   *  outright: it is the direction whose move tile the cursor is over, and
+   *  that tile already spells out the very same face — rolling one square
+   *  toward `dir` and tipping toward `dir` are the same quarter-turn, so the
+   *  two hints would always print identical words.
+   *
+   *  `actionable` is false when the die is merely being read (an enemy's, or
+   *  your own out of turn); the tab still explains itself but says so by
+   *  going quiet, since double-clicking it will do nothing. */
+  setEdgeHints(visible, worldX, worldZ, { hoveredDir = null, mutedDir = null, actionable = true } = {}) {
     for (const dir of ['N', 'E', 'S', 'W']) {
       const plate = this.edgeHints[dir];
-      plate.visible = visible;
-      if (!visible) continue;
+      plate.visible = visible && dir !== mutedDir;
+      if (!plate.visible) continue;
       const d = DIRECTION_VECTORS[dir];
-      plate.position.set(worldX + d.x * 0.95, TOP_Y + 0.12, worldZ + d.z * 0.95);
+      plate.position.set(worldX + d.x * EDGE_TAB_INSET, TOP_Y + 0.06, worldZ + d.z * EDGE_TAB_INSET);
       const hot = dir === hoveredDir;
       drawPlate(plate, this.unit.topAfterTurning(dir), {
         size: 34,
-        bg: hot ? 'rgba(192,138,232,0.92)' : 'rgba(14,12,18,0.72)',
-        fg: hot ? '#12101a' : '#c9b6e8',
-        border: hot ? '#ffffff' : 'rgba(201,182,232,0.45)',
+        bg: hot ? 'rgba(192,138,232,0.95)' : actionable ? 'rgba(14,12,18,0.8)' : 'rgba(14,12,18,0.6)',
+        fg: hot ? '#12101a' : actionable ? '#c9b6e8' : '#8d81a3',
+        border: hot ? '#ffffff' : actionable ? 'rgba(201,182,232,0.5)' : 'rgba(141,129,163,0.3)',
       });
+    }
+  }
+
+  /** Show (or hide) the four corner turn handles. */
+  setCornerTurns(visible, worldX, worldZ, hoveredCorner = null) {
+    for (const [corner, spec] of Object.entries(TURN_CORNERS)) {
+      const plate = this.cornerTurns[corner];
+      plate.visible = visible;
+      if (!visible) continue;
+      plate.position.set(worldX + spec.x * CORNER_INSET, TOP_Y + 0.07, worldZ + spec.z * CORNER_INSET);
+      drawTurnGlyph(plate, spec.cw, { hot: corner === hoveredCorner });
     }
   }
 
@@ -290,7 +398,7 @@ export class UnitView {
     this.activeLabel.geometry.dispose();
     this.activeLabel.material.dispose();
     this.labelTexture.dispose();
-    for (const m of [this.nameLabel, ...Object.values(this.edgeHints)]) {
+    for (const m of [this.nameLabel, ...Object.values(this.edgeHints), ...Object.values(this.cornerTurns)]) {
       m.geometry.dispose();
       m.material.dispose();
       m.userData.texture.dispose();
