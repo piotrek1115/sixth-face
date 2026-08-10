@@ -3,7 +3,7 @@ import { UNIT_TYPES, ATTACK_LABELS, PUSH_LABELS, RANGE_BY_LABEL, WOUNDED_LABEL, 
 /** What each face actually does, in one line. Keyed by label so the sheet can
  *  never drift from the roster — every face printed on a die gets looked up
  *  here, and anything missing shows up immediately as a blank. */
-const FACE_RULES = {
+export const FACE_RULES = {
   Guard: 'A frontal hit is absorbed — no wound, but the Guard is knocked aside. No protection from the flank.',
   Wounded: 'One hit from death. Cannot block, attack, roll or turn — only one 1-AP step per turn.',
   Strike: 'Plain attack, range 1.',

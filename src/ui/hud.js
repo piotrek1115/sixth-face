@@ -21,7 +21,7 @@ export function createHud(root, actions) {
     <div class="deployPanel" id="deployPanel" hidden></div>
     <div class="cheatSheet" id="cheatSheet" hidden></div>
     <div class="log" id="log"></div>
-    <div class="hint" id="hint">Click a unit, then click a cyan tile to Step (1 AP) — click it again fast to Roll instead (2 AP, changes your top face). Buttons below work too.</div>
+    <div class="hint" id="hint"><b>Select a die</b> and four purple tabs appear around it — each names the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> to tip (2 AP, stays put).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> (2 AP). Hover anything and hold still for a second to see what it does.</div>
   `;
 
   root.querySelector('#endTurnBtn').addEventListener('click', () => actions.onEndTurn());
@@ -148,8 +148,6 @@ function renderUnitPanel(el, game, unit, actions) {
       ${['N', 'E', 'S', 'W'].map((dir) => stepButton(game, unit, dir, canAct)).join('')}
       <div class="actionGroupLabel">Roll · 2 AP · changes top face, moves a tile</div>
       ${['N', 'E', 'S', 'W'].map((dir) => rollButton(game, unit, dir, canAct)).join('')}
-      <div class="actionGroupLabel">Tip in place · 2 AP · changes top face, keeps the tile</div>
-      ${['N', 'E', 'S', 'W'].map((dir) => rollInPlaceButton(game, unit, dir, canAct)).join('')}
       <button data-act="turn" data-cw="1" ${!canAct ? 'disabled' : ''}>Face ⟳</button>
       <button data-act="turn" data-cw="0" ${!canAct ? 'disabled' : ''}>Face ⟲</button>
       <button data-act="attack" class="attack ${preview?.lethal || preview?.wounds ? 'lethal' : ''}" ${!canAttackNow ? 'disabled' : ''}>Attack (${topLabel})</button>
@@ -162,7 +160,6 @@ function renderUnitPanel(el, game, unit, actions) {
       const act = btn.dataset.act;
       if (act === 'step') actions.onStep(unit, btn.dataset.dir);
       if (act === 'roll') actions.onRoll(unit, btn.dataset.dir);
-      if (act === 'rollInPlace') actions.onRollInPlace(unit, btn.dataset.dir);
       if (act === 'turn') actions.onTurn(unit, btn.dataset.cw === '1');
       if (act === 'attack') actions.onAttack(unit);
     });
@@ -195,11 +192,6 @@ function stepButton(game, unit, dir, canAct) {
 function rollButton(game, unit, dir, canAct) {
   const disabled = !canAct || !game.canRoll(unit, dir);
   return `<button data-act="roll" data-dir="${dir}" ${disabled ? 'disabled' : ''}>Roll ${DIR_GLYPH[dir]}</button>`;
-}
-
-function rollInPlaceButton(game, unit, dir, canAct) {
-  const disabled = !canAct || !game.canRollInPlace(unit);
-  return `<button data-act="rollInPlace" data-dir="${dir}" class="inplace" ${disabled ? 'disabled' : ''}>Tip ${DIR_GLYPH[dir]}</button>`;
 }
 
 function showVictory(root, winner) {

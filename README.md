@@ -28,6 +28,24 @@ npm run build     # build produkcyjny do dist/
 **Na start:** kliknij **▶ Auto-Play** i obejrzyj całą partię AI kontra AI (~20 tur).
 Potem **? Rules** — pełna ściąga z rozrysowanymi kostkami. Potem zagraj sam.
 
+### Sterowanie
+
+Kliknij kość, żeby ją wybrać. Wokół niej pojawiają się **cztery fioletowe
+zakładki** — po jednej na krawędź — i każda pokazuje **nazwę ścianki, która
+wyjdzie na wierzch**, jeśli przewrócisz kość w tę stronę. Podwójne kliknięcie
+zakładki wykonuje ten obrót w miejscu (2 AP, kość zostaje na polu).
+
+Pola dostępne do ruchu podświetlają się na turkusowo. Najechanie na pole
+pokazuje na nim **`Roll → nazwa`** — ściankę, którą dostaniesz, jeśli tam
+dojedziesz rollem. Jedno kliknięcie = **Step** (1 AP, ścianka bez zmian),
+podwójne = **Roll** (2 AP, ścianka się zmienia). Przeciągnięcie zawsze robi
+Step. Pole ataku jest czerwone.
+
+**Zatrzymaj kursor na sekundę** na czymkolwiek, co nazywa ściankę — na
+zakładce, na podświetlonym polu albo na nazwie aktywnej ścianki nad kością —
+a pojawi się jedno zdanie, co ta ścianka robi. Panel po prawej ma te same
+akcje jako zwykłe przyciski, jeśli wolisz nie zgadywać.
+
 ---
 
 ## Stan prototypu — co jest udowodnione, a co nie

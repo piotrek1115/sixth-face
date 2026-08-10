@@ -207,3 +207,12 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .netCell b { font-size: 10px; line-height: 1.15; }
 .netCell span { font-size: 8px; opacity: .75; line-height: 1.1; margin-top: 1px; }
 .netRow.arms .netCell:nth-child(2) { outline: 2px solid #7fd8ea; outline-offset: -2px; }
+
+/* ---------- hover explanation ---------- */
+.faceTip {
+  position: absolute; z-index: 20; max-width: 280px; pointer-events: none;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px;
+  padding: 8px 10px; font-size: 11.5px; line-height: 1.45; color: var(--text-dim);
+  backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0,0,0,.35);
+}
+.faceTip b { display: block; color: var(--text); font-size: 12.5px; margin-bottom: 3px; }

@@ -2,10 +2,11 @@ import './style.css';
 import { Raycaster, Vector2 } from 'three';
 import { Game } from './core/game.js';
 import { createSceneRig } from './render/scene.js';
-import { UnitView } from './render/diceMesh.js';
+import { UnitView, makePlate, drawPlate } from './render/diceMesh.js';
 import { gridToWorld, makeHighlight, buildBoard, DIE_HALF } from './render/board.js';
 import { RollAnimation, RollInPlaceAnimation, StepAnimation, TurnAnimation, HitAnimation, LungeAnimation } from './render/animator.js';
 import { createHud } from './ui/hud.js';
+import { FACE_RULES } from './ui/cheatsheet.js';
 import { DIRECTION_VECTORS } from './core/orientation.js';
 import { decideAiAction } from './core/ai.js';
 
@@ -37,22 +38,34 @@ function addUnitView(unit) {
   view.dieMesh.position.set(x, DIE_HALF, z);
   view.syncFacing(x, z);
   view.syncRing(x, z);
-  scene.add(view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow, view.activeLabel, view.ring);
+  scene.add(
+    view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow,
+    view.activeLabel, view.nameLabel, view.ring,
+    ...Object.values(view.edgeHints)
+  );
   views.set(unit.id, view);
   return view;
+}
+
+function sceneParts(view) {
+  return [
+    view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow,
+    view.activeLabel, view.nameLabel, view.ring,
+    ...Object.values(view.edgeHints),
+  ];
 }
 
 function removeUnitView(unit) {
   const view = views.get(unit.id);
   if (!view) return;
-  scene.remove(view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow, view.activeLabel, view.ring);
+  scene.remove(...sceneParts(view));
   view.dispose();
   views.delete(unit.id);
 }
 
 function buildAllViews() {
   for (const view of views.values()) {
-    scene.remove(view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow, view.activeLabel, view.ring);
+    scene.remove(...sceneParts(view));
     view.dispose();
   }
   views = new Map();
@@ -72,11 +85,84 @@ highlightPool.forEach((h) => scene.add(h));
 const attackHighlight = makeHighlight(0xff6b6b);
 scene.add(attackHighlight);
 
+// A floating plate that names the face a roll onto the hovered tile would
+// turn up, so you can compare destinations before spending 2 AP.
+const tilePreview = makePlate(1.0, 0.3, 14);
+tilePreview.visible = false;
+scene.add(tilePreview);
+
+function showTilePreview(tileMesh, label) {
+  tilePreview.visible = true;
+  tilePreview.position.set(tileMesh.position.x, 0.5, tileMesh.position.z);
+  drawPlate(tilePreview, `Roll → ${label}`, {
+    size: 32,
+    bg: 'rgba(14,20,24,0.85)',
+    fg: '#8fe3f5',
+    border: 'rgba(93,201,225,0.6)',
+  });
+}
+
+let lastPointer = { x: 0, y: 0 };
+
+// --- the settle-then-explain tooltip -----------------------------------
+// Hovering a hint shows WHAT you would get instantly; the sentence explaining
+// what that face DOES only appears once the pointer has sat still for a
+// moment, so sweeping the board never flashes text at you.
+const HOVER_EXPLAIN_MS = 1000;
+const tooltipEl = document.createElement('div');
+tooltipEl.className = 'faceTip';
+tooltipEl.hidden = true;
+document.getElementById('app').appendChild(tooltipEl);
+
+function showTooltip(label) {
+  const rule = FACE_RULES[label];
+  if (!rule) return;
+  tooltipEl.innerHTML = `<b>${label}</b>${rule}`;
+  tooltipEl.hidden = false;
+  const pad = 14;
+  tooltipEl.style.left = Math.min(lastPointer.x + pad, window.innerWidth - 300) + 'px';
+  tooltipEl.style.top = Math.min(lastPointer.y + pad, window.innerHeight - 90) + 'px';
+}
+
+function hideTooltip() {
+  tooltipEl.hidden = true;
+}
+
+/** Is the cursor over the selected die's active-face plate? */
+function pickActiveLabel(ev) {
+  if (!selectedUnit) return null;
+  const view = views.get(selectedUnit.id);
+  if (!view?.activeLabel.visible) return null;
+  setPointerFromEvent(ev);
+  return raycaster.intersectObject(view.activeLabel, false)[0] ? selectedUnit.topLabel : null;
+}
+
+/** Called every frame: opens the tooltip once the pointer has settled. */
+function updateTooltip() {
+  if (!hoverKind || !tooltipEl.hidden) return;
+  if (performance.now() - hoverSince < HOVER_EXPLAIN_MS) return;
+  if (hoverKind === 'edge' && hoveredEdge && selectedUnit) {
+    showTooltip(selectedUnit.topAfterTurning(hoveredEdge.dir));
+  } else if (hoverKind === 'tile' && hoveredTileDir && selectedUnit) {
+    // Same grammar as the edge tabs: the plate names the face a roll here
+    // would bring up, and settling on it explains what that face does.
+    showTooltip(selectedUnit.topAfterTurning(hoveredTileDir));
+  } else if (hoverKind === 'active' && selectedUnit) {
+    showTooltip(selectedUnit.topLabel);
+  }
+}
+
 let selectedUnit = null;
 // The deploy palette: which unit type the next board click will place, or
 // null when clicks should pick units up instead. Declared here, next to the
 // other UI state, so it is initialised before anything can render.
 let deployChoice = null;
+// What the cursor is currently over, and since when — the tooltip only opens
+// after the pointer has settled, so sweeping across the board stays quiet.
+let hoveredEdge = null;
+let hoveredTileDir = null;
+let hoverSince = 0;
+let hoverKind = null;
 
 function refreshHighlights() {
   highlightPool.forEach((h) => (h.visible = false));
@@ -96,6 +182,13 @@ function refreshHighlights() {
       h.material.opacity = 0.35;
     }
   }
+  // Tip hints ride on the selected unit only, and only when it could pay.
+  for (const [id, view] of views) {
+    const isSel = selectedUnit && id === selectedUnit.id && game.canRollInPlace(selectedUnit);
+    const w = isSel ? gridToWorld(selectedUnit.x, selectedUnit.z) : null;
+    view.setEdgeHints(!!isSel, w?.x ?? 0, w?.z ?? 0, hoveredEdge?.dir ?? null);
+  }
+
   const target = game.findAttackTarget(selectedUnit);
   if (target && game.canAttack(selectedUnit)) {
     const { x, z } = gridToWorld(target.x, target.z);
@@ -239,7 +332,7 @@ function reconcileViews() {
     const unit = game.units.find((u) => u.id === id);
     if (!unit) {
       const view = views.get(id);
-      scene.remove(view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow, view.activeLabel, view.ring);
+      scene.remove(...sceneParts(view));
       view.dispose();
       views.delete(id);
     }
@@ -278,10 +371,12 @@ function fadeOutUnit(unit) {
     view.guardBar.visible = false;
     view.attackArrow.visible = false;
     view.activeLabel.visible = false;
+    view.nameLabel.visible = false;
     view.ring.visible = false;
+    view.setEdgeHints(false);
     if (t < 1) requestAnimationFrame(step);
     else {
-      scene.remove(view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow, view.activeLabel, view.ring);
+      scene.remove(...sceneParts(view));
     }
   }
   requestAnimationFrame(step);
@@ -435,9 +530,13 @@ window.__debug.selectUnitById = (id) => {
 const raycaster = new Raycaster();
 const pointer = new Vector2();
 
+// NDC comes from the canvas box, not the window: the two happen to coincide
+// today (the HUD is overlaid, so the canvas is full-bleed), but any future
+// side panel or margin would silently offset every click and hover.
 function setPointerFromEvent(ev) {
-  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
 }
 
@@ -482,11 +581,63 @@ canvas.addEventListener('pointerdown', (ev) => {
   }
 });
 
+/** The tip hint plate under the cursor, if any. */
+function pickEdgeHint(ev) {
+  if (!selectedUnit) return null;
+  const view = views.get(selectedUnit.id);
+  if (!view) return null;
+  const plates = Object.values(view.edgeHints).filter((p) => p.visible);
+  setPointerFromEvent(ev);
+  const hit = plates.length ? raycaster.intersectObjects(plates, false)[0] : null;
+  return hit ? { dir: hit.object.userData.tipDir, object: hit.object } : null;
+}
+
 canvas.addEventListener('pointermove', (ev) => {
+  lastPointer = { x: ev.clientX, y: ev.clientY };
+
   // Live hover feedback while dragging: brighten whichever legal-move tile
   // is currently under the cursor so the drag target is obvious.
   const hovered = pickHighlightedTile(ev);
   for (const h of highlightPool) h.material.opacity = h === hovered ? 0.75 : 0.35;
+
+  // Hovering a move tile previews the face a ROLL there would turn up — the
+  // one thing you cannot work out by looking at the board.
+  if (hovered && selectedUnit) {
+    const dir = hovered.userData.dir;
+    showTilePreview(hovered, selectedUnit.topAfterTurning(dir));
+  } else {
+    tilePreview.visible = false;
+  }
+
+  const edge = pickEdgeHint(ev);
+  const tileDir = hovered ? hovered.userData.dir : null;
+  const changed = edge?.dir !== hoveredEdge?.dir || tileDir !== hoveredTileDir;
+  if (changed) {
+    hoverSince = performance.now();
+    hideTooltip();
+  }
+  hoveredEdge = edge;
+  hoveredTileDir = tileDir;
+  hoverKind = edge ? 'edge' : hovered ? 'tile' : pickActiveLabel(ev) ? 'active' : null;
+  if (edge) refreshHighlights();
+});
+
+canvas.addEventListener('pointerleave', () => {
+  hoveredEdge = null;
+  hoveredTileDir = null;
+  hoverKind = null;
+  tilePreview.visible = false;
+  hideTooltip();
+});
+
+// Double-clicking an edge hint tips the die that way — the hint already told
+// you exactly which face you are buying.
+canvas.addEventListener('dblclick', (ev) => {
+  const edge = pickEdgeHint(ev);
+  if (!edge || !selectedUnit) return;
+  ev.preventDefault();
+  cancelPendingClick();
+  if (animateRollInPlace(selectedUnit, edge.dir)) afterAction();
 });
 
 // Tile clicks: 1 click = Step (1 AP, cheap), a quick 2nd click on the SAME
@@ -582,6 +733,7 @@ function tick(now) {
   }
   if (wasAnimating && activeAnimations.size === 0) resyncViews();
 
+  updateTooltip();
   renderer.render(scene, camera);
 }
 

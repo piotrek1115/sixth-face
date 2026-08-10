@@ -10,22 +10,13 @@
 // fixes both: a turn is only worth anything if it actually enables an attack
 // this turn, and undoing your own last move carries an explicit penalty.
 import { DIR_ORDER, nextDir, oppositeDir, DIRECTION_VECTORS } from './orientation.js';
-import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS, labelForAxisKey } from './units.js';
+import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS } from './units.js';
 
 
 function nearestDistanceFrom(x, z, enemies) {
   let best = Infinity;
   for (const e of enemies) best = Math.min(best, Math.abs(x - e.x) + Math.abs(z - e.z));
   return best;
-}
-
-/** What would be face-up after rolling `dir` — accounting for the wound-skip
- *  making it a two-tile tumble. */
-function topAfterRoll(unit, dir) {
-  const probe = unit.orientation.clone();
-  const turns = unit.rollTurns(dir);
-  for (let i = 0; i < turns; i++) probe.roll(dir);
-  return labelForAxisKey(unit.unitTypeId, probe.snapshot().top);
 }
 
 /** Would this unit have an attack available if it were facing `facing`?
@@ -176,7 +167,7 @@ function scoreCandidates(game, myUnits, enemies) {
     // also covers ground.
     if (game.canRollInPlace(unit)) {
       for (const dir of DIR_ORDER) {
-        const newTop = topAfterRoll(unit, dir);
+        const newTop = unit.topAfterTurning(dir);
         if (here <= 1 && ATTACK_LABELS.has(newTop)) {
           add(SCORE.rollIntoAttack + SCORE.holdContact, { type: 'rollInPlace', unit, dir });
         }
@@ -198,7 +189,7 @@ function scoreCandidates(game, myUnits, enemies) {
       const nx = unit.x + d.x; // a roll always covers exactly one tile
       const nz = unit.z + d.z;
       const there = nearestDistanceFrom(nx, nz, enemies);
-      const newTop = topAfterRoll(unit, dir);
+      const newTop = unit.topAfterTurning(dir);
       let score = positionalScore(unit, here, there, SCORE.rollClosePerTile, leaderMayHide);
       // Arming yourself is the main reason to spend 2 AP on a roll — and it
       // has to outweigh the step back it costs. Changing your face REQUIRES

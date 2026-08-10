@@ -77,6 +77,17 @@ export class Unit {
     return wouldLandWounded ? 2 : 1;
   }
 
+  /** Which face would be showing after a roll or tip in `dir` — the wound
+   *  skip included, so this is what the player will actually see. Shared by
+   *  the AI and by the on-board hover hints, so a prediction can never
+   *  disagree with what the move then does. */
+  topAfterTurning(dir) {
+    const probe = this.orientation.clone();
+    const turns = this.rollTurns(dir);
+    for (let i = 0; i < turns; i++) probe.roll(dir);
+    return labelForAxisKey(this.unitTypeId, probe.snapshot().top);
+  }
+
   /** Own move (roll). Never wounds and never kills — it turns past the wound
    *  face rather than resting on it.
    *

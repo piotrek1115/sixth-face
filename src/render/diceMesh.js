@@ -52,8 +52,54 @@ function buildMaterials(unit) {
   );
 }
 
+/** A flat, always-upright plate carrying canvas text. Every hint in the game
+ *  is one of these, so they all look and behave the same whether they belong
+ *  to a die or to the board. */
+export function makePlate(w, h, renderOrder = 12) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = Math.round((256 * h) / w);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const mesh = new Mesh(
+    new PlaneGeometry(w, h),
+    new MeshBasicMaterial({ map: texture, transparent: true, depthTest: false })
+  );
+  mesh.rotation.x = -Math.PI / 2; // lies flat; y-rotation stays 0 so it never turns
+  mesh.renderOrder = renderOrder;
+  mesh.userData.canvas = canvas;
+  mesh.userData.texture = texture;
+  return mesh;
+}
+
+export function drawPlate(
+  mesh,
+  text,
+  { size = 40, bg = 'rgba(10,9,8,0.82)', fg = '#ffffff', border = 'rgba(255,255,255,0.3)' } = {}
+) {
+  const canvas = mesh.userData.canvas;
+  const ctx = canvas.getContext('2d');
+  const { width: w, height: h } = canvas;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, w - 4, h - 4);
+  ctx.font = `700 ${size}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.strokeText(text, w / 2, h / 2);
+  ctx.fillStyle = fg;
+  ctx.fillText(text, w / 2, h / 2);
+  mesh.userData.texture.needsUpdate = true;
+}
+
 /** Everything needed to render + animate one unit's die + facing marker + selection ring. */
 export class UnitView {
+
   constructor(unit) {
     this.unit = unit;
 
@@ -113,6 +159,29 @@ export class UnitView {
     this.activeLabel.renderOrder = 10;
     this._drawActiveLabel();
 
+    // Who this die actually is. Without it the board is a row of anonymous
+    // cubes — you can read the active ability but not whether you are looking
+    // at a Pikeman or the Captain.
+    this.nameLabel = makePlate(1.5, 0.3, 11);
+    drawPlate(this.nameLabel, unit.type.name + (unit.type.isLeader ? ' ★' : ''), {
+      size: 34,
+      bg: 'rgba(10,9,8,0.7)',
+      fg: unit.faction === 'humans' ? '#9dc0ff' : '#ffb98a',
+    });
+
+    // One hint plate per edge of the top face, showing what a TIP that way
+    // would turn up. Hidden until the die is selected — they are the primary
+    // way to tip now, replacing a row of buttons that could not show you the
+    // one thing that matters: which face you would actually get.
+    this.edgeHints = {};
+    for (const dir of ['N', 'E', 'S', 'W']) {
+      const plate = makePlate(0.86, 0.3, 13);
+      plate.visible = false;
+      plate.userData.tipDir = dir;
+      plate.userData.unitId = unit.id;
+      this.edgeHints[dir] = plate;
+    }
+
     this.ring = new Mesh(
       new RingGeometry(0.62, 0.72, 32),
       new MeshStandardMaterial({ color: 0xffd479, emissive: 0xffd479, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 })
@@ -122,6 +191,25 @@ export class UnitView {
     this.ring.visible = false;
 
     this.deadFade = 0; // 0 = alive/opaque, 1 = fully faded
+  }
+
+  /** Show (or hide) the four tip hints, each labelled with the face that a tip
+   *  that way would bring up. `hoveredDir` gets the highlighted treatment. */
+  setEdgeHints(visible, worldX, worldZ, hoveredDir = null) {
+    for (const dir of ['N', 'E', 'S', 'W']) {
+      const plate = this.edgeHints[dir];
+      plate.visible = visible;
+      if (!visible) continue;
+      const d = DIRECTION_VECTORS[dir];
+      plate.position.set(worldX + d.x * 0.95, TOP_Y + 0.12, worldZ + d.z * 0.95);
+      const hot = dir === hoveredDir;
+      drawPlate(plate, this.unit.topAfterTurning(dir), {
+        size: 34,
+        bg: hot ? 'rgba(192,138,232,0.92)' : 'rgba(14,12,18,0.72)',
+        fg: hot ? '#12101a' : '#c9b6e8',
+        border: hot ? '#ffffff' : 'rgba(201,182,232,0.45)',
+      });
+    }
   }
 
   /** Repaints the floating name plate for whatever face is up right now. */
@@ -179,6 +267,7 @@ export class UnitView {
     // Sits above the die, centred, never rotated — see the constructor.
     this.activeLabel.position.set(worldX, TOP_Y + 0.06, worldZ);
     this._drawActiveLabel();
+    this.nameLabel.position.set(worldX, 0.05, worldZ + 0.98);
 
     const kind = indicatorKindFor(this.unit.topLabel);
     this.guardBar.visible = kind === 'guard';
@@ -201,6 +290,11 @@ export class UnitView {
     this.activeLabel.geometry.dispose();
     this.activeLabel.material.dispose();
     this.labelTexture.dispose();
+    for (const m of [this.nameLabel, ...Object.values(this.edgeHints)]) {
+      m.geometry.dispose();
+      m.material.dispose();
+      m.userData.texture.dispose();
+    }
     this.ring.geometry.dispose();
     this.ring.material.dispose();
   }
