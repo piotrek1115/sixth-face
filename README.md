@@ -15,6 +15,12 @@ Nie jest to gotowa gra i nie udaje takiej.
 trzeba instalować ani pobierać. Cała reszta tego pliku to dokumentacja; do
 grania wystarczy ten link.
 
+### 📄 [Handoff — o co w tym chodzi](https://piotrek1115.github.io/sixth-face/handoff/)
+
+Sześć stron bez żargonu: pomysł, zasady, frakcje, stan prototypu i otwarte
+pytania. Do wysłania komuś, kto ma to ocenić.
+[Wersja PDF](https://piotrek1115.github.io/sixth-face/handoff/Sixth-Face-handoff.pdf).
+
 **Pierwsze 5 minut:**
 
 1. **▶ Auto-Play** — obejrzyj partię AI kontra AI (~20 tur). Zobaczysz, jak

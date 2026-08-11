@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Sixth Face</title>
+<style>
+  @page { size: A4; margin: 0; }
+
+  :root {
+    --ink:      #17181d;
+    --ink-soft: #4a4f5a;
+    --ink-mute: #7b818d;
+    --accent:   #9a6b12;
+    --accent-b: #c9a227;
+    --rule:     #dcdee3;
+    --wash:     #f6f5f2;
+    --dark:     #14151a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: var(--ink);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    width: 210mm; height: 297mm;
+    padding: 20mm 18mm 16mm;
+    page-break-after: always;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  h1, h2, h3, .eyebrow, .stat-n, th, .play, .big, .foot, .figure figcaption, .tag {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  .eyebrow {
+    font-size: 8.5pt; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+
+  h1 { font-size: 54pt; line-height: 1.0; margin: 6mm 0 0; letter-spacing: -.025em; font-weight: 700; }
+  h2 {
+    font-size: 15.5pt; margin: 0 0 4mm; letter-spacing: -.01em; font-weight: 700;
+    padding-bottom: 2.5mm; border-bottom: 2px solid var(--ink);
+  }
+  h3 { font-size: 10.5pt; margin: 6mm 0 2mm; }
+
+  p { font-size: 10.5pt; line-height: 1.55; margin: 0 0 3.5mm; }
+  .lead { font-size: 13pt; line-height: 1.45; color: var(--ink-soft); }
+  strong { color: var(--ink); }
+
+  /* ---------- okładka ---------- */
+  .cover { justify-content: space-between; }
+  .cover .tagline { font-size: 15pt; line-height: 1.38; color: var(--ink-soft); margin: 5mm 0 0; max-width: 155mm; }
+  .cover .hero { margin: 8mm 0 7mm; border-radius: 2mm; overflow: hidden; border: 1px solid var(--rule); flex: 1 1 auto; min-height: 0; }
+  .cover .hero img { width: 100%; height: 100%; object-fit: cover; object-position: 46% 46%; display: block; }
+  .cover-foot {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-top: 1px solid var(--rule); padding-top: 4mm; font-size: 9.5pt; color: var(--ink-mute);
+  }
+  .play { font-size: 10.5pt; font-weight: 700; color: var(--ink); text-decoration: none; }
+  .play span { color: var(--accent); }
+
+  /* ---------- strona-hook ---------- */
+  .hook { background: var(--dark); color: #ece9e3; }
+  .hook h2 { color: #fff; border-bottom-color: #3a3c45; }
+  .hook .big {
+    font-size: 26pt; line-height: 1.18; font-weight: 700; letter-spacing: -.02em;
+    color: #fff; margin: 0 0 6mm;
+  }
+  .hook .big em { color: var(--accent-b); font-style: normal; }
+  .hook p { color: #c3c0ba; }
+  .hook strong { color: #fff; }
+  .hook .rule { height: 1px; background: #3a3c45; margin: 6mm 0; }
+  .hook .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 9mm; margin-top: 1mm; }
+  .hook .cell h3 { color: var(--accent-b); margin: 0 0 1.5mm; font-size: 10pt; letter-spacing: .02em; }
+  .hook .cell p { margin: 0; font-size: 10pt; line-height: 1.5; }
+  /* Puenta siada na dole strony — wolna przestrzeń rozdziela bloki,
+     zamiast zbierać się pod ostatnim akapitem. */
+  .hook .punch { margin-top: auto; padding-top: 4mm; }
+  .hook .foot { color: #6a6d76; border-top-color: #2a2c33; }
+
+  /* ---------- elementy ---------- */
+  .figure { margin: 4mm 0; }
+  .figure img { width: 100%; display: block; border: 1px solid var(--rule); border-radius: 1.5mm; }
+  /* Zrzut trzeba zmniejszyć, żeby strona się domknęła — ale NIE przycinać:
+     armie stoją na przeciwległych krawędziach planszy, więc każdy poziomy
+     kadr gubi jedną z nich. */
+  .figure.crop img { width: 70%; margin: 0 auto; }
+  .figure figcaption { font-size: 8.5pt; color: var(--ink-mute); margin-top: 2mm; line-height: 1.4; }
+
+  .callout { background: var(--wash); border-left: 3px solid var(--accent-b); padding: 4.5mm 5mm; margin: 4mm 0; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin: 4mm 0 2mm; }
+  .stat { border-top: 2px solid var(--ink); padding-top: 2.5mm; }
+  .stat-n { font-size: 21pt; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+  .stat-l { font-size: 8.5pt; color: var(--ink-soft); line-height: 1.35; margin-top: 1.5mm; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0; }
+  th {
+    text-align: left; font-size: 8pt; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-mute); padding: 0 0 2mm; border-bottom: 1px solid var(--ink);
+  }
+  td { font-size: 9.5pt; line-height: 1.4; padding: 2.3mm 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td:first-child { width: 30mm; font-weight: 700; padding-right: 4mm; }
+  .tag {
+    display: block; font-size: 7pt; letter-spacing: .1em; text-transform: uppercase;
+    font-weight: 700; margin-top: .8mm;
+  }
+  .tag.done { color: var(--accent); }
+  .tag.plan { color: var(--ink-mute); }
+
+  .actions td:first-child { width: 34mm; }
+  /* Kolumna kosztu potrzebuje własnej szerokości i odstępu — bez tego
+     nagłówki "Koszt" i "Co robi" stykały się w jeden wyraz. */
+  .actions th:nth-child(2), .actions td:nth-child(2) { width: 16mm; padding-right: 5mm; }
+  .actions .cost { color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+  ul { margin: 0 0 3.5mm; padding-left: 5mm; }
+  li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 2mm; }
+
+  .qa { margin: 0 0 4mm; }
+  .qa .q { font-weight: 700; font-size: 10.5pt; margin-bottom: 1mm; }
+  .qa .a { font-size: 10pt; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+
+  .foot {
+    margin-top: auto; padding-top: 4mm; border-top: 1px solid var(--rule);
+    font-size: 8pt; color: var(--ink-mute); display: flex; justify-content: space-between;
+  }
+
+  /* ---------- podgląd na ekranie ----------
+     Widoczne tylko w przeglądarce. Do PDF-a to nie trafia (@media screen),
+     więc możesz to zmieniać bez wpływu na wydruk. */
+  @media screen {
+    body { background: #6f727a; padding: 26px 0; }
+    .page {
+      margin: 0 auto 26px; background: #fff;
+      box-shadow: 0 3px 22px rgba(0,0,0,.38);
+    }
+    .page.hook { background: var(--dark); }
+  }
+</style>
+</head>
+<body>
+<!--
+  ===========================================================================
+  SIXTH FACE — handoff (źródło do edycji)
+
+  JAK EDYTOWAĆ
+  Otwórz ten plik w przeglądarce (dwuklik) i równolegle w edytorze tekstu.
+  Zmieniasz tekst między znacznikami, zapisujesz, odświeżasz przeglądarkę.
+
+  Każda strona to jeden blok <section class="page">…</section>.
+  Żeby dodać stronę — skopiuj cały taki blok. Żeby usunąć — skasuj go w
+  całości. Numer strony w stopce wpisuje się ręcznie (szukaj <div class="foot">).
+
+  UWAGA NA DŁUGOŚĆ: strona ma sztywną wysokość A4. Jeśli dopiszesz za dużo
+  tekstu, nadmiar zostanie ucięty — sprawdzaj w przeglądarce, czy nic nie
+  wychodzi poza białe pole.
+
+  CZĘSTO UŻYWANE ELEMENTY
+    <strong>…</strong>                 pogrubienie
+    <p class="lead">…</p>              większy akapit wprowadzający
+    <div class="callout"><p>…</p></div> ramka z żółtą krechą
+    <h3>…</h3>                         śródtytuł
+    <span class="tag done">grywalne</span> / <span class="tag plan">szkic</span>
+
+  KOLORY I ROZMIARY: sekcja :root na początku <style>.
+
+  JAK ZROBIĆ Z TEGO PDF (macOS, wymaga Chrome):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --no-pdf-header-footer \
+      --print-to-pdf="$HOME/Sixth-Face-handoff.pdf" \
+      --virtual-time-budget=8000 "file://$HOME/sixth-face-handoff/handoff.html"
+
+  Albo po prostu: Cmd+P w przeglądarce → Zapisz jako PDF, marginesy „Brak",
+  grafika tła włączona.
+  ===========================================================================
+-->
+
+
+<!--DOC-START-->
+<!-- ============ 1 · OKŁADKA ============ -->
+<section class="page cover">
+  <div>
+    <div class="eyebrow">Gra bitewna na kościach · prototyp</div>
+    <h1>Sixth&nbsp;Face</h1>
+    <p class="tagline">
+      Wysypujesz garść kości na arenę. <strong>To jest cała twoja armia.</strong>
+      Ścianka, która leży na wierzchu, jest rozkazem — a każda frakcja ma własny
+      układ ścianek, czyli własną mechanikę.
+    </p>
+  </div>
+
+  <div class="hero"><img src="img/closeup.jpg" alt="Zbliżenie na kość jednostki na planszy"></div>
+
+  <div class="cover-foot">
+    <a class="play" href="https://piotrek1115.github.io/sixth-face/">
+      Zagraj w prototyp <span>piotrek1115.github.io/sixth-face</span>
+    </a>
+    <div>Piotr Kujko</div>
+  </div>
+</section>
+
+<!-- ============ 2 · HOOK ============ -->
+<section class="page hook">
+  <p class="big">
+    Bez kart. Bez żetonów. Bez liczników ran.<br>
+    <em>Garść kości i plansza.</em>
+  </p>
+
+  <p>
+    Każda kość to jedna jednostka. Sześć ścianek to sześć rzeczy, które ta
+    jednostka potrafi — cios, zasłona, szarża, rozkaz. Ta, która leży na
+    wierzchu, obowiązuje <strong>teraz</strong>. Przewracasz kość i jednostka
+    dosłownie zmienia to, czym jest.
+  </p>
+
+  <p>
+    Rana nie jest żetonem — jest obrotem kości. Śmierć nie jest skreśleniem
+    na kartce — kość znika z planszy. <strong>Cały stan bitwy widzisz jednym
+    spojrzeniem na stół</strong>, bo nie ma go nigdzie indziej.
+  </p>
+
+  <div class="rule"></div>
+
+  <div class="grid">
+    <div class="cell">
+      <h3>Frakcja to inny zestaw kości</h3>
+      <p>
+        Ludzie trzymają formację. Orkowie prą naprzód. Gobliny zalewają
+        planszę i giną od jednego ciosu. Elfy są szybkie i kruche.
+        Nie zmienia się kolor — zmienia się <strong>układ ścianek</strong>,
+        a z nim reguły, które ta armia wnosi do gry.
+      </p>
+    </div>
+    <div class="cell">
+      <h3>Przedmiot, który chce się mieć</h3>
+      <p>
+        Docelowo: kolorowe kości wysokiej jakości, <strong>grawerowane
+        i zadrukowane</strong>, oraz arena z wyraźnym gridem. Kość jest ładna
+        sama w sobie i jednocześnie <em>jest</em> całą zasadą jednostki —
+        nie ma osobnej karty, którą trzeba do niej dołożyć.
+      </p>
+    </div>
+    <div class="cell">
+      <h3>Budujesz własną armię</h3>
+      <p>
+        Wybierasz, które kości bierzesz na stół i jak je ustawiasz.
+        Dwie armie tej samej frakcji mogą grać zupełnie inaczej, bo liczy się
+        nie tylko co masz, ale <strong>co sąsiaduje z czym</strong> na każdej
+        z twoich kości.
+      </p>
+    </div>
+    <div class="cell">
+      <h3>Wiele formatów, jeden rdzeń</h3>
+      <p>
+        Ten sam zestaw kości obsługuje potyczkę dwóch jednostek i bitwę na
+        dwadzieścia. Docelowo — kilka wariantów rozgrywki na tym samym
+        pudełku, na wzór formatów w grach karcianych: szybki pojedynek,
+        pełna bitwa, tryb z celami na planszy.
+      </p>
+    </div>
+  </div>
+
+  <div class="punch">
+    <div class="rule"></div>
+    <p style="font-size:14pt;line-height:1.45;color:#ece9e3;margin:0">
+      Zasady mieszczą się na kartce. Decyzje — nie.<br>
+      To jest ta gra, którą tłumaczysz komuś w dwie minuty,
+      a potem gracie do drugiej w nocy.
+    </p>
+  </div>
+
+  <div class="foot"><span>Sixth Face</span><span>2</span></div>
+</section>
+
+<!-- ============ 3 · JAK SIĘ GRA ============ -->
+<section class="page">
+  <h2>Jak się w to gra</h2>
+
+  <p class="lead">
+    Twoja tura to <strong>dwa punkty akcji na całą armię</strong>. Nie na
+    jednostkę — na armię. I to jest cały ciężar decyzji.
+  </p>
+
+  <table class="actions">
+    <tbody><tr><th>Akcja</th><th>Koszt</th><th>Co robi</th></tr>
+    <tr><td>Krok</td><td class="cost">1&nbsp;PA</td><td>Jedno pole w dowolną stronę. Kość się <strong>nie</strong> przewraca — zachowujesz to, co masz na wierzchu.</td></tr>
+    <tr><td>Przetoczenie</td><td class="cost">2&nbsp;PA</td><td>Jedno pole w dowolną stronę, ale kość się przewraca — <strong>na wierzch wchodzi inna ścianka</strong>.</td></tr>
+    <tr><td>Obrót w miejscu</td><td class="cost">2&nbsp;PA</td><td>Zostajesz na polu i przewracasz kość. Jedyny sposób, żeby zmienić rozkaz, stojąc oko w oko z wrogiem.</td></tr>
+    <tr><td>Zwrot</td><td class="cost">1&nbsp;PA</td><td>Zmieniasz kierunek, w który jednostka patrzy. Ścianka bez zmian.</td></tr>
+    <tr><td>Atak</td><td class="cost">1&nbsp;PA</td><td>Tylko jeśli na wierzchu masz ściankę ataku. Bijesz prosto przed siebie.</td></tr>
+  </tbody></table>
+
+  <div class="callout">
+    <p>
+      <strong>Tu jest sedno:</strong> ruszyć się i zachować swój rozkaz jest
+      tanie. Zmienić rozkaz — kosztuje całą turę. Cały czas wybierasz między
+      <strong>tempem a gotowością</strong>: podejść bliżej teraz i uderzyć za
+      dwie tury, czy uzbroić się już i pozwolić przeciwnikowi wybrać moment.
+    </p>
+  </div>
+
+  <h3>Dlaczego układ ścianek jest projektem, a nie grafiką</h3>
+  <p>
+    Przewracając kość w jedną stronę odwiedzasz tylko <strong>cztery z sześciu
+    ścianek</strong> — dwie pozostałe są poza zasięgiem, dopóki nie przewrócisz
+    jej w bok. To znaczy, że <strong>to, co z czym sąsiaduje, decyduje o tym,
+    jakie sekwencje są w ogóle możliwe</strong>. Miecznik, u którego cios leży
+    obok szarży, gra zupełnie inaczej niż taki, u którego cios leży naprzeciw —
+    przy identycznych ściankach.
+  </p>
+  <p>
+    To jest mechanizm, na którym stoi cały pomysł na frakcje. Projektując nową
+    armię nie dokładamy nowych zasad — <strong>przekładamy ścianki na kości</strong>.
+  </p>
+
+  <h3>Rany i koniec bitwy</h3>
+  <p>
+    Trafiona jednostka zostaje przewrócona: najpierw traci zasłonę, potem
+    zostaje ranna, potem schodzi z planszy. Od frontu wytrzymuje trzy ciosy,
+    z boku dwa — <strong>ustawienie jednostki naprawdę ma znaczenie</strong>.
+    Bitwę wygrywa ten, kto pokona dowódcę przeciwnika.
+  </p>
+
+  <div class="foot"><span>Sixth Face</span><span>3</span></div>
+</section>
+
+<!-- ============ 4 · FRAKCJE ============ -->
+<section class="page">
+  <h2>Frakcje zmieniają reguły, nie kolor</h2>
+
+  <p class="lead">
+    To jest teza produktu. Kupując armię, kupujesz <strong>inną maszynę,
+    a nie skórkę</strong> — i to jest odpowiedź na pytanie, po co komu drugi
+    zestaw kości.
+  </p>
+
+  <p>
+    Dwie pierwsze frakcje są zaprojektowane i grywalne. Reszta to kierunki —
+    każdy z nich łamie inny element rdzenia, ale nie wymaga nowego rulebooka,
+    bo mieści się w tych samych pięciu akcjach.
+  </p>
+
+  <table>
+    <tbody><tr><th>Frakcja</th><th>Co wnosi do gry</th></tr>
+    <tr><td>Ludzie<span class="tag done">grywalne</span></td><td>Formacja i reakcja. Nagradzają wzajemne wsparcie i karzą tego, kto wyjdzie przed szereg.</td></tr>
+    <tr><td>Orkowie<span class="tag done">grywalne</span></td><td>Napór. Atakują także bokiem, więc grożą zawsze — nie da się ich bezpiecznie wyminąć.</td></tr>
+    <tr><td>Gobliny<span class="tag plan">szkic</span></td><td>Rój. Najtańsze kości w grze, giną od pierwszego trafienia, ale jest ich dużo i mają po dwie ścianki ruchu.</td></tr>
+    <tr><td>Elfy<span class="tag plan">szkic</span></td><td>Szybkie i kruche. Tanie przetoczenia, więc zmieniają rozkaz bez utraty tempa — ale padają od dwóch ciosów.</td></tr>
+    <tr><td>Krasnoludy<span class="tag plan">szkic</span></td><td>Mur. Nie da się ich odepchnąć, a zasłona działa też z boku. Trzeba je obejść, nie przewrócić.</td></tr>
+    <tr><td>Nieumarli<span class="tag plan">szkic</span></td><td>Brak ścianki rany. Trafione znikają na turę i wracają — zabicie ich wymaga zupełnie innego rytmu.</td></tr>
+    <tr><td>Ogry<span class="tag plan">szkic</span></td><td>Jedna kość zajmuje cztery pola. Cztery ścianki zamiast sześciu, każdy atak odpycha.</td></tr>
+  </tbody></table>
+
+  <div class="callout">
+    <p>
+      Kierunków rozwoju jest więcej niż jeden: <strong>kolejne frakcje</strong>,
+      <strong>budowanie własnych armii</strong> z dostępnych kości, a docelowo
+      także <strong>alternatywne warianty rdzenia</strong> — inne warunki
+      zwycięstwa, inne areny, inne pule akcji. Ta sama półka z kośćmi obsługuje
+      kilka różnych gier.
+    </p>
+  </div>
+
+  <div class="foot"><span>Sixth Face</span><span>4</span></div>
+</section>
+
+<!-- ============ 5 · GDZIE TO JEST DZIŚ ============ -->
+<section class="page">
+  <h2>Gdzie to jest dzisiaj</h2>
+
+  <p class="lead">
+    Działający prototyp w przeglądarce — bez instalowania czegokolwiek.
+    Pełna partia od ustawienia armii do zwycięstwa, komputer potrafi zagrać
+    obiema stronami.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>Świadomie mały zakres.</strong> Prototyp testuje <strong>cztery
+      kości na stronę na planszy 5×5</strong>. To jest laboratorium rdzenia,
+      nie docelowa gra: chodziło o to, żeby sprawdzić, czy przewracanie kości
+      daje sensowne decyzje, przy jak najmniejszej liczbie ruchomych części.
+      Docelowa arena to <strong>7×7 lub 8×8</strong> i wyraźnie większe armie —
+      dopiero na tej skali formacja i obchodzenie skrzydłem zaczynają
+      naprawdę znaczyć.
+    </p>
+  </div>
+
+  <figure class="figure crop">
+    <img src="img/board.jpg" alt="Plansza prototypu z dwiema armiami">
+    <figcaption>
+      Prototyp: cztery kości na stronę, plansza 5×5. Cały stan obu armii widać
+      jednym spojrzeniem — nie ma kart ani liczników, bo wszystko jest na kościach.
+    </figcaption>
+  </figure>
+
+  <h3>Decyzje są zmierzone, nie wyczute</h3>
+  <p>
+    Każdy wariant zasad przeszedł przez tysiące symulowanych partii i był
+    oceniany po tym, czy gra się kończy i czy po drodze coś się dzieje:
+  </p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-n">5&nbsp;→&nbsp;62</div>
+      <div class="stat-l">Tura, w której kończyła się partia, po zejściu z trzech punktów akcji na dwa. Przy trzech przeciwnik nie dostawał okna na reakcję.</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">88%</div>
+      <div class="stat-l">Ataków rozrywało zwarcie, dopóki atakujący nie zaczął wchodzić w zwolnione pole. Bez tej poprawki gra stała w miejscu przez 2456 tur.</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">24&nbsp;→&nbsp;7</div>
+      <div class="stat-l">Tak bardzo skracał grę darmowy bonus dowódcy. Dlatego rozkaz kosztuje dowódcę jego własną turę.</div>
+    </div>
+  </div>
+
+  <p style="margin-top:3mm">
+    W grze <strong>nie ma losowości</strong> poza decyzjami graczy — kością się
+    nie rzuca, kość się przewraca. Dzięki temu wersja cyfrowa i planszowa liczą
+    dokładnie to samo i nie rozjadą się przy rozwoju.
+  </p>
+
+  <div class="foot"><span>Sixth Face</span><span>5</span></div>
+</section>
+
+<!-- ============ 6 · RYZYKO I CO DALEJ ============ -->
+<section class="page">
+  <h2>Czego jeszcze nie wiemy</h2>
+
+  <p class="lead">
+    Wiemy, że ta gra działa i że się kończy. <strong>Nie wiemy, czy jest
+    przyjemna.</strong>
+  </p>
+
+  <p>
+    Wszystkie dotychczasowe rozstrzygnięcia opierają się na partiach komputera
+    przeciwko komputerowi. To świetny wykrywacz zakleszczeń — realnie wyłapał
+    ich pięć — ale <strong>kiepski miernik frajdy</strong>. Nikt jeszcze nie
+    przegrał tej gry i się przy tym nie zirytował.
+  </p>
+
+  <div class="qa">
+    <div class="q">Czy walka w zwarciu jest ciekawa czy męcząca?</div>
+    <p class="a">
+      Zmiana rozkazu w kontakcie z wrogiem kosztuje całą turę. To sedno napięcia
+      w tej grze — albo najbardziej irytująca rzecz w niej. Tego nie rozstrzygnie
+      żadna symulacja.
+    </p>
+  </div>
+
+  <div class="qa">
+    <div class="q">Czy zdolności są widoczne dla gracza?</div>
+    <p class="a">
+      Część efektów odpala się sama, a gracz widzi tylko wynik. Możliwe, że to
+      szum, który należy uprościć.
+    </p>
+  </div>
+
+  <div class="qa">
+    <div class="q">Czy obrażenia nie są po cichu punktami życia?</div>
+    <p class="a">
+      Trzy trafienia od frontu, dwa z boku — narysowane na sześcianie zamiast na
+      karcie. Uczciwie: to była zamiana, nie ulepszenie. Bez niej gra się nie
+      kończyła, ale warto o tym wiedzieć.
+    </p>
+  </div>
+
+  <h2 style="margin-top:7mm">Co dalej</h2>
+
+  <ul>
+    <li><strong>Testy z ludźmi.</strong> Jedyny sposób, żeby zamknąć jedyne naprawdę otwarte pytanie. Prototyp jest gotowy do posadzenia kogoś przed nim już dziś.</li>
+    <li><strong>Trzecia frakcja jako dowód tezy.</strong> Gobliny albo krasnoludy — jeśli sam inny układ ścianek daje inną grę przy tych samych pięciu akcjach, teza produktowa się broni.</li>
+    <li><strong>Większa arena.</strong> 7×7 lub 8×8 i pełne armie — sprawdzić, czy decyzje skalują się w górę, czy rozmywają.</li>
+    <li><strong>Fizyczny prototyp kości.</strong> Choćby drukowany — żeby sprawdzić to, czego ekran nie sprawdzi: czy przewracanie kości w dłoni jest satysfakcjonujące.</li>
+  </ul>
+
+  <div class="callout">
+    <p>
+      <strong>O co pytam:</strong> czy po zagraniu kilku tur widzisz tu grę,
+      w którą chciałbyś zagrać drugi raz — i czy zwarcie czyta się jako
+      napięcie, czy jako przeszkoda. Reszta jest do policzenia; to nie.
+    </p>
+  </div>
+
+  <p style="margin-top:6mm">
+    <a class="play" href="https://piotrek1115.github.io/sixth-face/">
+      Zagraj w prototyp <span>piotrek1115.github.io/sixth-face</span>
+    </a><br>
+    <span style="font-size:9.5pt;color:var(--ink-mute)">
+      Pełna dokumentacja: github.com/piotrek1115/sixth-face
+    </span>
+  </p>
+
+  <div class="foot"><span>Sixth Face</span><span>6</span></div>
+</section>
+<!--DOC-END-->
+
+<script>
+// Strona ma sztywne 210 mm. Na wąskim ekranie (telefon, podgląd) skalujemy
+// ją do szerokości okna, żeby nie trzeba było przewijać w bok. Nie dotyczy
+// druku ani sytuacji, gdy stronę serwuje lokalny edytor — on ma własny
+// przełącznik dopasowania i dwa zoomy by się mnożyły.
+(function () {
+  if (document.getElementById('editorbar')) return;
+  function fit() {
+    var w = document.documentElement.clientWidth;
+    document.body.style.zoom = Math.min(1, (w - 20) / 794);
+  }
+  window.addEventListener('resize', fit);
+  document.addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+</body>
+</html>
