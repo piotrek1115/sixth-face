@@ -7,7 +7,7 @@ import { gridToWorld, makeHighlight, buildBoard, DIE_HALF } from './render/board
 import { RollAnimation, RollInPlaceAnimation, StepAnimation, TurnAnimation, HitAnimation, LungeAnimation } from './render/animator.js';
 import { createHud } from './ui/hud.js';
 import { FACE_RULES } from './ui/cheatsheet.js';
-import { DIRECTION_VECTORS } from './core/orientation.js';
+import { DIRECTION_VECTORS, nextDir } from './core/orientation.js';
 import { decideAiAction } from './core/ai.js';
 
 const canvas = document.getElementById('scene');
@@ -123,11 +123,10 @@ tooltipEl.className = 'faceTip';
 tooltipEl.hidden = true;
 document.getElementById('app').appendChild(tooltipEl);
 
-function showTooltip(label, { reposition = true } = {}) {
-  const rule = FACE_RULES[label];
-  if (!rule) return;
-  tooltipEl.innerHTML = `<b>${label}</b>${rule}`;
-  tooltipEl.dataset.label = label;
+function showTooltip({ title, body }, { reposition = true } = {}) {
+  if (!body) return;
+  tooltipEl.innerHTML = `<b>${title}</b>${body}`;
+  tooltipEl.dataset.label = `${title}|${body}`;
   tooltipEl.hidden = false;
   if (!reposition) return;
   const pad = 14;
@@ -153,12 +152,26 @@ function pickActiveLabel(ev) {
  *  stationary cursor can change its mind — spend your second AP and it stops
  *  offering a Roll and offers a Step instead — and an open tooltip that kept
  *  explaining the face you can no longer afford would be a lie. */
+function faceTip(label) {
+  return { title: label, body: FACE_RULES[label] };
+}
+
 function tooltipLabelNow() {
-  if (hoverKind === 'edge' && hoveredEdge) return hoveredEdge.unit.topAfterTurning(hoveredEdge.dir);
+  // A corner handle names the direction in words. A curved arrow can show
+  // that something turns, but which way it ends up pointing is exactly the
+  // part a small glyph cannot say.
+  if (hoverKind === 'corner' && hoveredCorner && selectedUnit) {
+    const to = nextDir(selectedUnit.facing, hoveredCorner.cw);
+    return {
+      title: hoveredCorner.cw ? 'Turn clockwise' : 'Turn anticlockwise',
+      body: `Front swings ${selectedUnit.facing} → ${to}. 1 AP, the top face does not change.`,
+    };
+  }
+  if (hoverKind === 'edge' && hoveredEdge) return faceTip(hoveredEdge.unit.topAfterTurning(hoveredEdge.dir));
   // Same grammar as the tabs: the plate names a face, settling on it explains
   // that face — whichever of Roll/Step the tile ended up offering.
-  if (hoverKind === 'tile' && hoveredTileFace) return hoveredTileFace;
-  if (hoverKind === 'active' && selectedUnit) return selectedUnit.topLabel;
+  if (hoverKind === 'tile' && hoveredTileFace) return faceTip(hoveredTileFace);
+  if (hoverKind === 'active' && selectedUnit) return faceTip(selectedUnit.topLabel);
   return null;
 }
 
@@ -174,7 +187,9 @@ function updateTooltip() {
   if (opening && performance.now() - hoverSince < HOVER_EXPLAIN_MS) return;
   // Reposition only on the way in, so a tooltip that merely re-words itself
   // does not jump out from under the cursor that is reading it.
-  if (opening || tooltipEl.dataset.label !== label) showTooltip(label, { reposition: opening });
+  if (opening || tooltipEl.dataset.label !== `${label.title}|${label.body}`) {
+    showTooltip(label, { reposition: opening });
+  }
 }
 
 let selectedUnit = null;
@@ -690,7 +705,7 @@ canvas.addEventListener('pointermove', (ev) => {
   hoveredTileDir = tileDir;
   hoveredCorner = corner;
   hoveredDieUnit = die;
-  hoverKind = edge ? 'edge' : hovered ? 'tile' : pickActiveLabel(ev) ? 'active' : null;
+  hoverKind = corner ? 'corner' : edge ? 'edge' : hovered ? 'tile' : pickActiveLabel(ev) ? 'active' : null;
   canvas.style.cursor = corner ? 'pointer' : '';
   if (edge || corner || changed || dieChanged) refreshHighlights();
 });

@@ -27,7 +27,7 @@ const painted = []; // every face we've drawn, so art can repaint them later
 const artwork = {}; // faction -> HTMLImageElement once loaded
 
 function paintFace(entry) {
-  const { ctx, label, faction } = entry;
+  const { ctx, label, faction, withLabel } = entry;
   const art = artwork[faction];
 
   if (art) {
@@ -44,6 +44,12 @@ function paintFace(entry) {
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 6;
   ctx.strokeRect(3, 3, SIZE - 6, SIZE - 6);
+
+  // The face that is currently UP is painted bare: the floating nameplate
+  // above the die already spells it out, and that plate turns with the unit's
+  // facing while a baked-in band turns with the tumble — two copies of the
+  // same word at two different angles.
+  if (!withLabel) return;
 
   // Name plate. Over painted artwork the label would fight the picture, so
   // it gets a dark band to sit on — the text itself stays white either way.
@@ -113,9 +119,11 @@ function loadFactionArt(faction, url) {
 
 for (const [faction, url] of Object.entries(FACTION_ART)) loadFactionArt(faction, url);
 
-/** Builds (and caches) a canvas texture for one die face. */
-export function labelTexture(label, faction) {
-  const key = `${label}|${faction}`;
+/** Builds (and caches) a canvas texture for one die face. Pass
+ *  `withLabel: false` for the bare-artwork variant used by whichever face is
+ *  currently on top. */
+export function labelTexture(label, faction, { withLabel = true } = {}) {
+  const key = `${label}|${faction}|${withLabel}`;
   if (cache.has(key)) return cache.get(key);
 
   const canvas = document.createElement('canvas');
@@ -126,7 +134,7 @@ export function labelTexture(label, faction) {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
 
-  const entry = { canvas, ctx, label, faction, texture };
+  const entry = { canvas, ctx, label, faction, texture, withLabel };
   painted.push(entry);
   paintFace(entry);
   texture.needsUpdate = true;

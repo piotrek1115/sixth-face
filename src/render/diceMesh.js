@@ -11,7 +11,7 @@ import {
   Group,
 } from 'three';
 import { labelTexture } from './labels.js';
-import { DIRECTION_VECTORS } from '../core/orientation.js';
+import { DIRECTION_VECTORS, WORLD_UP } from '../core/orientation.js';
 import { ATTACK_LABELS } from '../core/units.js';
 import { DIE_HALF } from './board.js';
 
@@ -36,21 +36,28 @@ function indicatorKindFor(topLabel) {
 }
 
 /** BoxGeometry material slot order: [+X, -X, +Y, -Y, +Z, -Z]. */
-function buildMaterials(unit) {
+const SLOT_ORDER = ['east', 'west', 'top', 'bottom', 'south', 'north'];
+/** Which material slot a local axis lives in — the die's own axis names, not
+ *  compass ones, so this survives any amount of tumbling. */
+const SLOT_OF_AXIS = Object.fromEntries(SLOT_ORDER.map((axis, i) => [axis, i]));
+
+function buildMaterials(unit, { withLabel = true } = {}) {
   const f = unit.type.faces;
-  const order = [
-    ['east', f.east],
-    ['west', f.west],
-    ['top', f.top],
-    ['bottom', f.bottom],
-    ['south', f.south],
-    ['north', f.north],
-  ];
-  return order.map(
-    ([, label]) =>
-      new MeshStandardMaterial({ map: labelTexture(label, unit.faction), roughness: 0.6, metalness: 0.05 })
+  return SLOT_ORDER.map(
+    (axis) =>
+      new MeshStandardMaterial({
+        map: labelTexture(f[axis], unit.faction, { withLabel }),
+        roughness: 0.6,
+        metalness: 0.05,
+      })
   );
 }
+
+/** How far to spin the floating nameplate so it reads along the unit's
+ *  facing. rotation.z = 0 puts the text's head to the north, which is what
+ *  the tactical camera (looking from the south) reads as upright — so a unit
+ *  facing SOUTH gets the undisturbed label, and the others turn from there. */
+const LABEL_SPIN = { S: 0, W: -Math.PI / 2, N: Math.PI, E: Math.PI / 2 };
 
 /** A flat, always-upright plate carrying canvas text. Every hint in the game
  *  is one of these, so they all look and behave the same whether they belong
@@ -105,37 +112,46 @@ export function drawTurnGlyph(mesh, clockwise, { hot = false } = {}) {
   const ctx = canvas.getContext('2d');
   const s = canvas.width;
   const c = s / 2;
-  const r = s * 0.3;
+  const r = s * 0.26;
+  // Canvas angles run clockwise on screen (+y is down), and the plate is laid
+  // flat with its +y toward the south, so "increasing angle" here is the same
+  // clockwise the player sees. sign flips the whole construction for the
+  // anticlockwise pair.
+  const sign = clockwise ? 1 : -1;
   ctx.clearRect(0, 0, s, s);
 
+  // Dark disc for contrast: these sit on painted wood, and a thin outline ring
+  // competed with the arrow instead of framing it.
   ctx.beginPath();
-  ctx.arc(c, c, s * 0.42, 0, Math.PI * 2);
-  ctx.fillStyle = hot ? 'rgba(255,212,121,0.95)' : 'rgba(14,12,18,0.72)';
+  ctx.arc(c, c, s * 0.46, 0, Math.PI * 2);
+  ctx.fillStyle = hot ? 'rgba(255,212,121,0.96)' : 'rgba(10,9,12,0.82)';
   ctx.fill();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = hot ? '#ffffff' : 'rgba(255,212,121,0.5)';
-  ctx.stroke();
 
   const ink = hot ? '#241c08' : '#ffd479';
-  // Three quarters of a circle, so the gap plus the arrowhead read as "turn".
-  const from = -Math.PI * 0.55;
-  const to = from + Math.PI * 1.5 * (clockwise ? 1 : -1);
+
+  // Two thirds of a circle, thick enough to read at the ~30px this occupies
+  // on screen. The gap plus a heavy head are what carry the direction — a
+  // thin arc with a small tip is ambiguous at any distance.
+  const from = -Math.PI * 0.62 * sign;
+  const to = from + Math.PI * 1.35 * sign;
   ctx.beginPath();
   ctx.arc(c, c, r, from, to, !clockwise);
-  ctx.lineWidth = s * 0.1;
+  ctx.lineWidth = s * 0.15;
   ctx.strokeStyle = ink;
-  ctx.lineCap = 'round';
+  ctx.lineCap = 'butt';
   ctx.stroke();
 
-  // Arrowhead on the moving end, tangent to the arc.
-  const tip = { x: c + Math.cos(to) * r, y: c + Math.sin(to) * r };
-  const tangent = to + (clockwise ? Math.PI / 2 : -Math.PI / 2);
-  const head = s * 0.13;
+  // Solid head at the leading end, straddling the arc and pointing along it.
+  const end = { x: c + Math.cos(to) * r, y: c + Math.sin(to) * r };
+  const ta = to + (Math.PI / 2) * sign;
+  const tangent = { x: Math.cos(ta), y: Math.sin(ta) };
+  const normal = { x: -tangent.y, y: tangent.x };
+  const len = s * 0.32;
+  const half = s * 0.19;
   ctx.beginPath();
-  for (const spread of [Math.PI * 0.78, -Math.PI * 0.78]) {
-    ctx.lineTo(tip.x + Math.cos(tangent + spread) * head, tip.y + Math.sin(tangent + spread) * head);
-  }
-  ctx.lineTo(tip.x + Math.cos(tangent) * head * 0.5, tip.y + Math.sin(tangent) * head * 0.5);
+  ctx.moveTo(end.x + tangent.x * len * 0.62, end.y + tangent.y * len * 0.62);
+  ctx.lineTo(end.x - tangent.x * len * 0.38 + normal.x * half, end.y - tangent.y * len * 0.38 + normal.y * half);
+  ctx.lineTo(end.x - tangent.x * len * 0.38 - normal.x * half, end.y - tangent.y * len * 0.38 - normal.y * half);
   ctx.closePath();
   ctx.fillStyle = ink;
   ctx.fill();
@@ -173,8 +189,13 @@ export class UnitView {
     this.unit = unit;
 
     const geo = new BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE, 1, 1, 1);
+    // Two full sets of face materials: the normal labelled ones, and bare
+    // artwork. syncTopFaceArt() swaps whichever face is currently up over to
+    // the bare set — see there.
+    this.faceMaterials = buildMaterials(unit);
+    this.bareMaterials = buildMaterials(unit, { withLabel: false });
     // Slightly bevel-free box; round the edges visually via material only for now.
-    this.dieMesh = new Mesh(geo, buildMaterials(unit));
+    this.dieMesh = new Mesh(geo, this.faceMaterials.slice());
     this.dieMesh.castShadow = true;
     this.dieMesh.receiveShadow = true;
 
@@ -260,7 +281,7 @@ export class UnitView {
     // told you nothing about which way the die would swing.
     this.cornerTurns = {};
     for (const [corner, spec] of Object.entries(TURN_CORNERS)) {
-      const plate = makePlate(0.36, 0.36, 14);
+      const plate = makePlate(0.42, 0.42, 14);
       plate.visible = false;
       plate.userData.turnCw = spec.cw;
       plate.userData.unitId = unit.id;
@@ -320,6 +341,22 @@ export class UnitView {
     }
   }
 
+  /** Strip the baked-in name from whichever face is currently pointing up,
+   *  and give every other face its label back.
+   *
+   *  Which slot that is comes from the die's own orientation, so it follows
+   *  the cube through any tumble. Done here rather than by covering the face
+   *  with an opaque plate: the floating label turns with FACING while a baked
+   *  band turns with the TUMBLE, so the two are usually at right angles and
+   *  no rectangle laid over one can hide the other. */
+  syncTopFaceArt() {
+    const upAxis = this.unit.orientation.localAxisPointingTo(WORLD_UP);
+    const upSlot = SLOT_OF_AXIS[upAxis];
+    for (let i = 0; i < SLOT_ORDER.length; i++) {
+      this.dieMesh.material[i] = i === upSlot ? this.bareMaterials[i] : this.faceMaterials[i];
+    }
+  }
+
   /** Repaints the floating name plate for whatever face is up right now. */
   _drawActiveLabel() {
     const ctx = this.labelCtx;
@@ -372,9 +409,12 @@ export class UnitView {
     this.guardBar.position.set(worldX + d.x * 0.5, TOP_Y, worldZ + d.z * 0.5);
     this.guardBar.rotation.y = angle;
 
-    // Sits above the die, centred, never rotated — see the constructor.
+    // Sits above the die, centred, and turned to the unit's facing — it is
+    // the only name on the top face now, so it carries the direction too.
     this.activeLabel.position.set(worldX, TOP_Y + 0.06, worldZ);
+    this.activeLabel.rotation.z = LABEL_SPIN[this.unit.facing] ?? 0;
     this._drawActiveLabel();
+    this.syncTopFaceArt();
     this.nameLabel.position.set(worldX, 0.05, worldZ + 0.98);
 
     const kind = indicatorKindFor(this.unit.topLabel);
@@ -388,7 +428,10 @@ export class UnitView {
 
   dispose() {
     this.dieMesh.geometry.dispose();
-    this.dieMesh.material.forEach((m) => m.dispose());
+    // Both sets, not just the six currently mounted on the mesh — one bare
+    // material is swapped in at any time, which would otherwise strand its
+    // labelled twin.
+    [...this.faceMaterials, ...this.bareMaterials].forEach((m) => m.dispose());
     this.facingArrow.geometry.dispose();
     this.facingArrow.material.dispose();
     this.guardBar.geometry.dispose();

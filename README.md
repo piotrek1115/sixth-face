@@ -40,7 +40,14 @@ miejscu (2 AP, kość zostaje na polu). Zakładki cudzych kości są przygaszone
 
 W rogach wybranej kości siedzą **złote strzałki obrotu**: dwa prawe rogi
 obracają kość w prawo, dwa lewe w lewo (1 AP, ścianka bez zmian). Klikasz ten
-róg, w którą stronę chcesz ją pchnąć.
+róg, w którą stronę chcesz ją pchnąć. Zatrzymanie kursora na rogu mówi wprost,
+gdzie front wyląduje (np. „Front swings S → W").
+
+Nazwa aktywnej ścianki leży na górnej ściance i **obraca się razem z frontem
+kości** — sam napis pokazuje, w którą stronę jednostka patrzy. To jedyny napis
+na górze: ścianka, która akurat jest na wierzchu, ma zdjęty wypalony podpis,
+żeby nie było dwóch tych samych słów pod różnym kątem. Ceną jest to, że
+jednostka patrząca na północ ma napis do góry nogami.
 
 Pola dostępne do ruchu podświetlają się na turkusowo. Najechanie na pole
 pisze na nim wprost, co się stanie: **`Roll → nazwa`**, a jeśli nie stać cię
