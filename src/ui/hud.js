@@ -14,6 +14,7 @@ export function createHud(root, actions) {
       <button id="themeBtn">☀ Light</button>
       <button id="modeBtn">✥ Custom setup</button>
       <button id="cheatBtn">? Rules</button>
+      <a class="docsLink" href="https://github.com/piotrek1115/sixth-face#readme" target="_blank" rel="noopener">Design doc ↗</a>
       <div class="faction-badge orcs" id="badge-orcs">Orcs</div>
     </div>
     <div class="debugPanel" id="debugPanel"></div>

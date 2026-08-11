@@ -68,6 +68,15 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #endTurnBtn:hover, #autoPlayBtn:hover, #themeBtn:hover, #modeBtn:hover, #cheatBtn:hover { background: var(--btn-bg-hover); }
 #autoPlayBtn.active { border-color: #ffd479; color: #ffd479; background: rgba(255,212,121,.12); }
 
+/* Quieter than the action buttons — it leaves the game rather than doing
+   something in it, and the player arriving from a bare link needs SOME way
+   back to the write-up. */
+.docsLink {
+  font-size: 13px; color: var(--text-dim); text-decoration: none;
+  padding: 6px 10px; border-radius: 6px; border: 1px solid transparent;
+}
+.docsLink:hover { color: var(--text); border-color: var(--panel-border); }
+
 /* ---------- unit info panel (right) ---------- */
 .panel {
   position: absolute; top: 64px; right: 12px; width: 230px;
