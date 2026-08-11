@@ -9,11 +9,29 @@ Nie jest to gotowa gra i nie udaje takiej.
 
 ---
 
-## Odpalenie (2 minuty)
+# ▶ [ZAGRAJ TERAZ](https://piotrek1115.github.io/sixth-face/)
+
+**https://piotrek1115.github.io/sixth-face/** — działa w przeglądarce, nic nie
+trzeba instalować ani pobierać. Cała reszta tego pliku to dokumentacja; do
+grania wystarczy ten link.
+
+**Pierwsze 5 minut:**
+
+1. **▶ Auto-Play** — obejrzyj partię AI kontra AI (~20 tur). Zobaczysz, jak
+   kości się przetaczają i jak wygląda zabicie.
+2. **? Rules** — pełna ściąga z rozrysowanymi kostkami, otwiera się obok gry.
+3. Zagraj sam. Najedź kursorem na cokolwiek i **zatrzymaj się na sekundę** —
+   gra sama tłumaczy, co robi dana ścianka.
+
+---
+
+## Odpalenie lokalnie (tylko jeśli chcesz grzebać w kodzie)
 
 Wymagany Node 18+.
 
 ```bash
+git clone https://github.com/piotrek1115/sixth-face.git
+cd sixth-face
 npm install
 npm run dev
 ```
@@ -24,9 +42,6 @@ Otwórz adres, który wypisze Vite (domyślnie `http://localhost:5173`).
 npm test          # 58 testów logiki, bez przeglądarki
 npm run build     # build produkcyjny do dist/
 ```
-
-**Na start:** kliknij **▶ Auto-Play** i obejrzyj całą partię AI kontra AI (~20 tur).
-Potem **? Rules** — pełna ściąga z rozrysowanymi kostkami. Potem zagraj sam.
 
 ### Sterowanie
 

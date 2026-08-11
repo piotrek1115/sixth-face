@@ -9,9 +9,13 @@ const DEATH_LABELS = new Set(['Wounded']);
  *  instead. Loading is async, so faces are drawn immediately with the
  *  fallback and repainted in place once the artwork arrives — the same
  *  CanvasTexture object stays live, so nothing else has to know. */
+// Paths are relative to the deployed base, not to the server root: the
+// published build sits under /sixth-face/, where a leading-slash path would
+// 404 and silently drop every die back to the flat colour fallback.
+const ART_BASE = import.meta.env.BASE_URL;
 const FACTION_ART = {
-  orcs: '/orc-face.png',
-  humans: '/human-face.png',
+  orcs: `${ART_BASE}orc-face.png`,
+  humans: `${ART_BASE}human-face.png`,
 };
 
 function fallbackColorFor(label, faction) {
