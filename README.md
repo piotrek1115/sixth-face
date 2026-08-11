@@ -25,25 +25,7 @@ grania wystarczy ten link.
 
 ---
 
-## Odpalenie lokalnie (tylko jeśli chcesz grzebać w kodzie)
-
-Wymagany Node 18+.
-
-```bash
-git clone https://github.com/piotrek1115/sixth-face.git
-cd sixth-face
-npm install
-npm run dev
-```
-
-Otwórz adres, który wypisze Vite (domyślnie `http://localhost:5173`).
-
-```bash
-npm test          # 58 testów logiki, bez przeglądarki
-npm run build     # build produkcyjny do dist/
-```
-
-### Sterowanie
+## Sterowanie
 
 Najedź na dowolną kość — **także przeciwnika i nie w swojej turze** — a na
 czterech krawędziach jej górnej ścianki pojawią się **fioletowe zakładki**.
@@ -73,6 +55,29 @@ ataku jest czerwone.
 **Zatrzymaj kursor na sekundę** na czymkolwiek, co nazywa ściankę — na
 zakładce, na podświetlonym polu albo na nazwie aktywnej ścianki nad kością —
 a pojawi się jedno zdanie, co ta ścianka robi.
+
+---
+
+## Odpalenie lokalnie (tylko jeśli chcesz grzebać w kodzie)
+
+Wymagany Node 18+.
+
+```bash
+git clone https://github.com/piotrek1115/sixth-face.git
+cd sixth-face
+npm install
+npm run dev
+```
+
+Otwórz adres, który wypisze Vite (domyślnie `http://localhost:5173`).
+
+```bash
+npm test          # 58 testów logiki, bez przeglądarki
+npm run build     # build produkcyjny do dist/
+```
+
+Każdy push na `master` przebudowuje i republikuje wersję pod linkiem powyżej
+(GitHub Actions → Pages), więc link nigdy nie jest starą kopią.
 
 ---
 
