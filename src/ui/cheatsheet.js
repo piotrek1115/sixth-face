@@ -124,6 +124,16 @@ export function renderCheatSheet() {
     <p class="note">Frontal: <b>3 hits</b>. From a flank or rear: <b>2 hits</b> — the blow drives straight past the Guard.
     You can never roll <i>yourself</i> onto Wounded: a roll that would land there turns one step further, still moving a single tile.</p>
 
+    <h4>Terrain</h4>
+    <table class="cheatTable">
+      <tr><td class="k">Wall</td><td>Impassable, and blows do not travel through it. Walls make the route
+      you take matter — and a gap in one is worth holding.</td></tr>
+      <tr><td class="k">Mud</td><td>Walk in and out of it freely, but <b>no die tips</b> in mud: not into it,
+      not out of it, not on the spot. You carry in whatever face is up and you carry the same one out.
+      It restricts your <b>abilities</b>, not your movement — which is the one kind of terrain a die
+      can express and a figure cannot.</td></tr>
+    </table>
+
     <h4>Ending the battle</h4>
     <p class="note">Defeat the enemy leader and you win outright. If <b>nobody lands a blow
     for 12 turns</b> the battle is called instead, and decided on what is left standing —

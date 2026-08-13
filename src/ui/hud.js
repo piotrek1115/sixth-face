@@ -1,5 +1,6 @@
 import { ATTACK_LABELS, UNIT_TYPES, WOUNDED_LABEL, RALLY_LABELS, PUSH_LABELS, RANGE_BY_LABEL } from '../core/units.js';
 import { renderCheatSheet } from './cheatsheet.js';
+import { TERRAIN } from '../core/board.js';
 import { renderDebugPanel } from './debugPanel.js';
 
 /** Builds the static HUD skeleton once and returns update functions + action hooks. */
@@ -115,12 +116,25 @@ function renderDeployPanel(el, game, actions, chosen) {
     <p class="deployHint">Pick a die, then click a square to place it. Click a placed die to remove it. Any number, anywhere.</p>
     <div class="deployGroup"><span class="k humans">Humans (${counts.humans})</span>${byFaction('humans')}</div>
     <div class="deployGroup"><span class="k orcs">Orcs (${counts.orcs})</span>${byFaction('orcs')}</div>
+    <div class="deployGroup">
+      <span class="k terrain">Terrain</span>
+      <button data-terrain="${TERRAIN.WALL}" class="${chosen?.terrain === TERRAIN.WALL ? 'chosen' : ''}">▨ Wall</button>
+      <button data-terrain="${TERRAIN.MUD}" class="${chosen?.terrain === TERRAIN.MUD ? 'chosen' : ''}">≈ Mud</button>
+      <button id="clearTerrainBtn">Clear</button>
+    </div>
+    <p class="deployHint">A <b>wall</b> blocks movement and blows alike. <b>Mud</b> is walked through
+    freely but no die can tip in it — you carry the ability you entered with, and leave with the same
+    one. Click a painted tile again to clear it.</p>
     <button id="startBattleBtn" ${game.canStartBattle() ? '' : 'disabled'}>▶ Start battle</button>
     ${game.canStartBattle() ? '' : '<p class="deployHint">Both sides need at least one die.</p>'}
   `;
   el.querySelectorAll('button[data-deploy]').forEach((btn) =>
     btn.addEventListener('click', () => actions.onPickDeployUnit(btn.dataset.deploy, btn.dataset.faction))
   );
+  el.querySelectorAll('button[data-terrain]').forEach((btn) =>
+    btn.addEventListener('click', () => actions.onPickTerrain(btn.dataset.terrain))
+  );
+  el.querySelector('#clearTerrainBtn').addEventListener('click', () => actions.onClearTerrain());
   el.querySelector('#startBattleBtn').addEventListener('click', () => actions.onStartBattle());
 }
 

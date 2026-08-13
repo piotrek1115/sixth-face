@@ -1,5 +1,5 @@
 import { Mesh, PlaneGeometry, MeshStandardMaterial, Group, GridHelper, BoxGeometry, MeshBasicMaterial } from 'three';
-import { BOARD_SIZE } from '../core/board.js';
+import { BOARD_SIZE, TERRAIN } from '../core/board.js';
 
 export const TILE = 1.6;
 // A real cube's resting height above the ground and how far it travels per
@@ -15,9 +15,74 @@ export function gridToWorld(x, z) {
 }
 
 export const BOARD_THEMES = {
-  dark: { base: 0x1b2029, tileA: 0x232a36, tileB: 0x1e242e, gridMain: 0x3a4356, gridSub: 0x2a3140 },
-  light: { base: 0xe4e7ed, tileA: 0xf1f2f5, tileB: 0xdadde3, gridMain: 0xb0b4bd, gridSub: 0xc7cad1 },
+  dark: {
+    base: 0x1b2029, tileA: 0x232a36, tileB: 0x1e242e, gridMain: 0x3a4356, gridSub: 0x2a3140,
+    wall: 0x6b6f78, wallTop: 0x878c96, mud: 0x4a3a24,
+  },
+  light: {
+    base: 0xe4e7ed, tileA: 0xf1f2f5, tileB: 0xdadde3, gridMain: 0xb0b4bd, gridSub: 0xc7cad1,
+    wall: 0x9aa0aa, wallTop: 0xc3c8d0, mud: 0x8a7048,
+  },
 };
+
+/** Terrain lives in its own group so it can be rebuilt on its own — the board
+ *  underneath is built once per theme, but terrain changes whenever someone
+ *  edits the map. */
+export function buildTerrainLayer() {
+  const g = new Group();
+  g.name = 'terrain';
+  return g;
+}
+
+const WALL_HEIGHT = TILE * 0.55;
+
+/** Wipe and redraw the terrain layer from the game's terrain map. */
+export function syncTerrain(layer, terrain, theme = 'dark') {
+  const colors = BOARD_THEMES[theme] ?? BOARD_THEMES.dark;
+  for (const child of [...layer.children]) {
+    child.geometry.dispose();
+    child.material.dispose();
+    layer.remove(child);
+  }
+  if (!terrain) return;
+
+  for (const [key, type] of terrain) {
+    const [x, z] = key.split(',').map(Number);
+    const { x: wx, z: wz } = gridToWorld(x, z);
+
+    if (type === TERRAIN.WALL) {
+      // Deliberately tall enough to read as an obstacle from the tactical
+      // camera, but below the dice so it never hides one behind it.
+      const block = new Mesh(
+        new BoxGeometry(TILE * 0.92, WALL_HEIGHT, TILE * 0.92),
+        new MeshStandardMaterial({ color: colors.wall, roughness: 0.95, flatShading: true })
+      );
+      block.position.set(wx, WALL_HEIGHT / 2, wz);
+      block.castShadow = true;
+      block.receiveShadow = true;
+      layer.add(block);
+
+      const cap = new Mesh(
+        new PlaneGeometry(TILE * 0.92, TILE * 0.92),
+        new MeshStandardMaterial({ color: colors.wallTop, roughness: 0.9 })
+      );
+      cap.rotation.x = -Math.PI / 2;
+      cap.position.set(wx, WALL_HEIGHT + 0.01, wz);
+      layer.add(cap);
+    }
+
+    if (type === TERRAIN.MUD) {
+      const pool = new Mesh(
+        new PlaneGeometry(TILE * 0.94, TILE * 0.94),
+        new MeshStandardMaterial({ color: colors.mud, roughness: 1 })
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(wx, 0.012, wz);
+      pool.receiveShadow = true;
+      layer.add(pool);
+    }
+  }
+}
 
 /** Builds the board group for the given theme ('dark' | 'light'). Rebuild
  *  (don't mutate) when the theme changes — GridHelper bakes its two colors

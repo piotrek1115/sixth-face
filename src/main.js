@@ -3,17 +3,22 @@ import { Raycaster, Vector2 } from 'three';
 import { Game } from './core/game.js';
 import { createSceneRig } from './render/scene.js';
 import { UnitView, makePlate, drawPlate } from './render/diceMesh.js';
-import { gridToWorld, makeHighlight, buildBoard, DIE_HALF } from './render/board.js';
+import { gridToWorld, makeHighlight, buildBoard, buildTerrainLayer, syncTerrain, DIE_HALF } from './render/board.js';
 import { RollAnimation, RollInPlaceAnimation, StepAnimation, TurnAnimation, HitAnimation, LungeAnimation } from './render/animator.js';
 import { createHud } from './ui/hud.js';
 import { FACE_RULES } from './ui/cheatsheet.js';
 import { DIRECTION_VECTORS, nextDir } from './core/orientation.js';
+import { TERRAIN, terrainAt } from './core/board.js';
 import { decideAiAction } from './core/ai.js';
 
 const canvas = document.getElementById('scene');
 const { scene, camera, renderer, board: initialBoard } = createSceneRig(canvas);
 let board = initialBoard;
 let theme = 'dark';
+// Terrain sits in its own layer: the board below is rebuilt only when the
+// theme changes, while terrain is redrawn whenever the map is edited.
+const terrainLayer = buildTerrainLayer();
+scene.add(terrainLayer);
 
 function setTheme(next) {
   theme = next;
@@ -21,6 +26,7 @@ function setTheme(next) {
   scene.remove(board);
   board = buildBoard(theme);
   scene.add(board);
+  syncTerrain(terrainLayer, game.terrain, theme);
   hud.setThemeLabel(theme);
 }
 
@@ -475,6 +481,15 @@ const hud = createHud(document.getElementById('hud'), {
       : { unitTypeId, faction };
     afterAction();
   },
+  onPickTerrain: (terrain) => {
+    deployChoice = deployChoice?.terrain === terrain ? null : { terrain };
+    afterAction();
+  },
+  onClearTerrain: () => {
+    game.terrain.clear();
+    syncTerrain(terrainLayer, game.terrain, theme);
+    afterAction();
+  },
   onStartBattle: () => {
     if (game.startBattle()) {
       deployChoice = null;
@@ -560,12 +575,30 @@ function newGame(opts) {
   deployChoice = null;
   activeAnimations.clear();
   buildAllViews();
+  syncTerrain(terrainLayer, game.terrain, theme);
   afterAction();
 }
 
 /** Handle a board click while dice are being placed: an empty tile drops the
  *  chosen die there, an occupied one picks that die back up. */
 function handleDeployClick(x, z) {
+  // Terrain brush takes priority: clicking with a brush selected paints the
+  // tile, and clicking the same terrain again clears it back to open ground.
+  if (deployChoice?.terrain) {
+    const key = `${x},${z}`;
+    const already = terrainAt(game.terrain, x, z) === deployChoice.terrain;
+    // Never bury a die under a wall — take it off the board first.
+    const standing = game.units.find((u) => u.x === x && u.z === z);
+    if (!already && deployChoice.terrain === TERRAIN.WALL && standing) {
+      if (game.undeployUnit(standing)) removeUnitView(standing);
+    }
+    if (already) game.terrain.delete(key);
+    else game.terrain.set(key, deployChoice.terrain);
+    syncTerrain(terrainLayer, game.terrain, theme);
+    afterAction();
+    return;
+  }
+
   const existing = game.units.find((u) => u.x === x && u.z === z);
   if (existing) {
     if (game.undeployUnit(existing)) removeUnitView(existing);
@@ -580,6 +613,10 @@ function handleDeployClick(x, z) {
 
 // DEBUG-ONLY hook: select a unit by id without needing pixel-perfect raycast
 // clicks. Not used by the game itself — safe to leave in for a prototype.
+// Test hook, alongside selectUnitById: lets a harness edit game.terrain
+// directly and then see the result, without going through the deploy UI.
+window.__debug.syncTerrain = () => syncTerrain(terrainLayer, game.terrain, theme);
+
 window.__debug.selectUnitById = (id) => {
   selectedUnit = game.units.find((u) => u.id === id) || null;
   afterAction();

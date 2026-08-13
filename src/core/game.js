@@ -1,4 +1,4 @@
-import { BOARD_SIZE, inBounds, unitAt } from './board.js';
+import { BOARD_SIZE, inBounds, unitAt, isWall, isMud } from './board.js';
 import { DIRECTION_VECTORS, oppositeDir } from './orientation.js';
 import { Unit } from './unit.js';
 import {
@@ -46,6 +46,9 @@ export class Game {
     // near the unbuffed baseline (21 turns vs 24).
     this.rallyMode = rallyMode;
     this.units = [];
+    // Per-game terrain, so a custom board carries its own. Empty by default:
+    // an untouched game plays exactly as it did before terrain existed.
+    this.terrain = new Map();
     this.turnNumber = 1;
     this.currentFaction = 'humans';
     this.ap = this.apPerTurn;
@@ -85,7 +88,7 @@ export class Game {
    *  their faction's advance direction, matching the standard line-up. */
   deployUnit(unitTypeId, faction, x, z) {
     if (this.phase !== 'deploy') return null;
-    if (!inBounds(x, z) || unitAt(this.units, x, z)) return null;
+    if (!inBounds(x, z) || unitAt(this.units, x, z) || isWall(this.terrain, x, z)) return null;
     const unit = new Unit(unitTypeId, faction, x, z, faction === 'humans' ? 'S' : 'N');
     this.units.push(unit);
     this._pushLog(`Placed ${unit.type.name} (${faction}) at ${x},${z}`);
@@ -148,7 +151,7 @@ export class Game {
   _destinationFree(unit, dir) {
     const nx = unit.x + DIRECTION_VECTORS[dir].x;
     const nz = unit.z + DIRECTION_VECTORS[dir].z;
-    return inBounds(nx, nz) && !unitAt(this.units, nx, nz);
+    return inBounds(nx, nz) && !unitAt(this.units, nx, nz) && !isWall(this.terrain, nx, nz);
   }
 
   // STEP — cheap (1 AP), any direction, a pure slide: top face and facing
@@ -180,6 +183,7 @@ export class Game {
       const nx = unit.x + d.x * s;
       const nz = unit.z + d.z * s;
       if (!inBounds(nx, nz) || unitAt(this.units, nx, nz)) return false;
+      if (isWall(this.terrain, nx, nz)) return false;
     }
     return true;
   }
@@ -240,6 +244,12 @@ export class Game {
     // A wounded unit is reeling — it can only drag itself one tile (see
     // canStep), never gather itself for a full tumble.
     if (unit.isWounded) return false;
+    // Mud grips the die: you can walk in and out of it, but nothing tips
+    // while it is involved — not into it, not out of it, not inside it. That
+    // is what makes mud a restriction on your ABILITIES rather than on your
+    // movement, which is the one kind of terrain a die can express and a
+    // figure cannot.
+    if (this._mudBlocksTip(unit, dir)) return false;
     // Only the single destination tile has to be clear. A roll always covers
     // exactly one tile — the wound-skip adds a quarter-turn to the die, not a
     // tile to the journey.
@@ -265,7 +275,17 @@ export class Game {
   // square you are standing on, so a unit pressed up against the enemy it
   // wants to hit could not arm itself without first backing off, and one
   // hemmed in on all sides was frozen on whatever face it happened to show.
+  /** True if mud stops this tip. `dir` is omitted for a tip in place, where
+   *  only the tile underneath matters. */
+  _mudBlocksTip(unit, dir = null) {
+    if (isMud(this.terrain, unit.x, unit.z)) return true;
+    if (!dir) return false;
+    const d = DIRECTION_VECTORS[dir];
+    return isMud(this.terrain, unit.x + d.x, unit.z + d.z);
+  }
+
   canRollInPlace(unit) {
+    if (this._mudBlocksTip(unit)) return false;
     return this.canAct(unit) && this.ap >= this._rollCost(unit) && !unit.isWounded;
   }
 
@@ -325,6 +345,7 @@ export class Game {
       const x = unit.x + d.x * step;
       const z = unit.z + d.z * step;
       if (!inBounds(x, z)) return null;
+      if (isWall(this.terrain, x, z)) return null; // a blow does not travel through stone
       const occupant = unitAt(this.units, x, z);
       if (!occupant) continue;
       if (occupant.faction !== unit.faction) return occupant;

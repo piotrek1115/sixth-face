@@ -164,6 +164,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .deployGroup .k { flex: 1 1 100%; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
 .deployGroup .k.humans { color: var(--humans); }
 .deployGroup .k.orcs { color: var(--orcs); }
+.deployGroup .k.terrain { color: #9aa0aa; }
 .deployPanel button {
   flex: 1 1 auto; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--panel-border);
   background: var(--btn-bg); color: var(--text); cursor: pointer; font-size: 12px; font-weight: 600;

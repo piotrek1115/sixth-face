@@ -11,12 +11,48 @@
 // this turn, and undoing your own last move is refused outright.
 import { DIR_ORDER, nextDir, oppositeDir, DIRECTION_VECTORS } from './orientation.js';
 import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS } from './units.js';
+import { BOARD_SIZE, inBounds, isWall } from './board.js';
 
 
-function nearestDistanceFrom(x, z, enemies) {
-  let best = Infinity;
-  for (const e of enemies) best = Math.min(best, Math.abs(x - e.x) + Math.abs(z - e.z));
-  return best;
+/** Walking distance from every tile to the nearest enemy, as a flood fill
+ *  outward from all of them at once.
+ *
+ *  This used to be Manhattan distance, which on a board with walls is not an
+ *  approximation but a WRONG NUMBER: it reports distances that cannot be
+ *  travelled. A unit would read "the enemy is three tiles away" straight
+ *  through a wall, march at it and stop dead — measured as terrain making
+ *  units move sideways LESS, which is the exact opposite of the point of
+ *  putting terrain on the board.
+ *
+ *  Other units are treated as passable: they move, so routing around a body
+ *  that will not be there next turn is not worth the detour. Only stone is
+ *  permanent. */
+function distanceField(enemies, terrain) {
+  const dist = new Map();
+  const queue = [];
+  for (const e of enemies) {
+    const key = `${e.x},${e.z}`;
+    if (!dist.has(key)) {
+      dist.set(key, 0);
+      queue.push([e.x, e.z]);
+    }
+  }
+  const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let head = 0; head < queue.length; head++) {
+    const [x, z] = queue[head];
+    const d = dist.get(`${x},${z}`);
+    for (const [dx, dz] of STEPS) {
+      const nx = x + dx;
+      const nz = z + dz;
+      const key = `${nx},${nz}`;
+      if (!inBounds(nx, nz) || dist.has(key) || isWall(terrain, nx, nz)) continue;
+      dist.set(key, d + 1);
+      queue.push([nx, nz]);
+    }
+  }
+  // Walled off entirely: treat as very far rather than infinite, so scores
+  // stay finite and comparable.
+  return (x, z) => dist.get(`${x},${z}`) ?? BOARD_SIZE * 2;
 }
 
 /** Would tipping toward `dir` leave this unit actually able to strike?
@@ -127,6 +163,8 @@ function isImmediateReversal(unit, type, dir) {
 
 function scoreCandidates(game, myUnits, enemies) {
   const out = [];
+  // One flood fill per decision, shared by every candidate move.
+  const distanceTo = distanceField(enemies, game.terrain);
   // A leader may only play it safe while someone else can still do the
   // fighting; once the healthy rank and file are gone it has to commit.
   const leaderMayHide = myUnits.some((u) => !u.type.isLeader && !u.isWounded);
@@ -135,7 +173,7 @@ function scoreCandidates(game, myUnits, enemies) {
   };
 
   for (const unit of myUnits) {
-    const here = nearestDistanceFrom(unit.x, unit.z, enemies);
+    const here = distanceTo(unit.x, unit.z);
 
 
     // --- attack -------------------------------------------------------
@@ -167,7 +205,7 @@ function scoreCandidates(game, myUnits, enemies) {
       const d = DIRECTION_VECTORS[dir];
       const nx = unit.x + d.x;
       const nz = unit.z + d.z;
-      const there = nearestDistanceFrom(nx, nz, enemies);
+      const there = distanceTo(nx, nz);
       let score =
         positionalScore(unit, here, there, SCORE.closePerTile, leaderMayHide) +
         engagementBonus(unit.topLabel, there === 1);
@@ -211,7 +249,7 @@ function scoreCandidates(game, myUnits, enemies) {
       const d = DIRECTION_VECTORS[dir];
       const nx = unit.x + d.x; // a roll always covers exactly one tile
       const nz = unit.z + d.z;
-      const there = nearestDistanceFrom(nx, nz, enemies);
+      const there = distanceTo(nx, nz);
       const newTop = unit.topAfterTurning(dir);
       let score = positionalScore(unit, here, there, SCORE.rollClosePerTile, leaderMayHide);
       // Arming yourself is the main reason to spend 2 AP on a roll — and it
