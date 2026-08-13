@@ -232,7 +232,9 @@ test('Roar: an adjacent enemy showing Roar stops Guard from blocking', () => {
 
 test('Stagger: even a non-push attack shoves a Staggered target back a tile', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman');
+  // The Pikeman, not the Swordsman: the light dice traded their Stagger face
+  // for the Sweep, so they are no longer the ones who carry this.
+  const sword = findUnit(g, 'pikeman');
   const warboss = findUnit(g, 'warboss'); // Chop is not a push label
 
   // The empty middle: rows 0-1 and 5-6 hold the two deployment ranks, so a

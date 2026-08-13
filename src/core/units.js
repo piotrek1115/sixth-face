@@ -38,7 +38,20 @@
 // is north. Orcs spawn facing north and roll north to advance, so their
 // 1-roll face is SOUTH — swapped from what you'd naively guess.
 
-export const ATTACK_LABELS = new Set(['Strike', 'Chop', 'Crush', 'Smash', 'Bash', 'Thrust', 'Loose']);
+export const ATTACK_LABELS = new Set(['Strike', 'Chop', 'Crush', 'Smash', 'Bash', 'Thrust', 'Loose', 'Sweep']);
+
+/** Faces that threaten a FAN — the tile ahead plus the two diagonally ahead
+ *  of it. Every other threat in the game runs along one of the four axes the
+ *  dice also move on, which measurably reinforced the columns instead of
+ *  breaking them: a shooter's best square is simply its own file. A fan is
+ *  the first threat that crosses into the neighbouring column, which is what
+ *  makes standing beside someone dangerous.
+ *
+ *  A diagonal blow is also never "frontal" — frontal means the attacker sits
+ *  exactly where the defender is looking, and no diagonal ever does. So a fan
+ *  goes round a raised Guard by geometry, without needing a rule that says
+ *  so. */
+export const FAN_LABELS = new Set(['Sweep']);
 export const PUSH_LABELS = new Set(['Bash']);
 export const RANGE_BY_LABEL = { Thrust: 2, Loose: 4 };
 export const DEFAULT_RANGE = 1;
@@ -71,7 +84,7 @@ export const UNIT_TYPES = {
     // and unpredictable, and correspondingly rarely sitting behind Guard.
     rollCost: 1,
     // 1 roll → Strike. 3 rolls → Riposte. Sides: Stagger / Advance.
-    faces: { top: 'Guard', north: 'Strike', bottom: 'Wounded', south: 'Riposte', east: 'Stagger', west: 'Advance' },
+    faces: { top: 'Guard', north: 'Strike', bottom: 'Wounded', south: 'Riposte', east: 'Sweep', west: 'Advance' },
   },
   pikeman: {
     id: 'pikeman',
@@ -130,7 +143,7 @@ export const UNIT_TYPES = {
     // Orcs advance NORTH, so their 1-roll face is SOUTH (see note above).
     // Attacks on BOTH the forward face and a side face — the orc identity:
     // whichever way they tumble, something hits you.
-    faces: { top: 'Guard', south: 'Bash', bottom: 'Wounded', north: 'Roar', east: 'Stagger', west: 'Chop' },
+    faces: { top: 'Guard', south: 'Bash', bottom: 'Wounded', north: 'Roar', east: 'Sweep', west: 'Chop' },
   },
   brute: {
     id: 'brute',

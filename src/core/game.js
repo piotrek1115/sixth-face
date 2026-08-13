@@ -10,6 +10,7 @@ import {
   DEFAULT_MIN_RANGE,
   WOUNDED_LABEL,
   RALLY_LABELS,
+  FAN_LABELS,
   labelForAxisKey,
 } from './units.js';
 
@@ -360,7 +361,62 @@ export class Game {
   /** First enemy found scanning outward along `unit`'s facing, up to its top face's range.
    *  Stops (and returns null) at the first occupied tile even if it's an ally — a body
    *  in the way blocks the line, exactly like a real spear/blade would. */
+  /** The tiles a fan face threatens: straight ahead, and the two diagonally
+   *  ahead of it. Range 1 — the sweep is a swing, not a reach. */
+  _fanTiles(unit) {
+    const f = DIRECTION_VECTORS[unit.facing];
+    // The two directions perpendicular to facing, so the diagonals are
+    // "forward and one step to either side".
+    const side = { x: -f.z, z: f.x };
+    return [
+      { x: unit.x + f.x, z: unit.z + f.z },
+      { x: unit.x + f.x + side.x, z: unit.z + f.z + side.z },
+      { x: unit.x + f.x - side.x, z: unit.z + f.z - side.z },
+    ];
+  }
+
+  /** Which enemy a sweep would actually connect with. It threatens three
+   *  tiles but lands on one — the worst opening it can see, so the player and
+   *  the AI never disagree about which way the blade went. */
+  _fanTarget(unit) {
+    let best = null;
+    let bestRank = -1;
+    for (const { x, z } of this._fanTiles(unit)) {
+      if (!inBounds(x, z) || isWall(this.terrain, x, z)) continue;
+      const occupant = unitAt(this.units, x, z);
+      if (!occupant || occupant.faction === unit.faction) continue;
+      // Prefer the blow that accomplishes most: a kill over a wound, a wound
+      // over merely knocking a Guard aside.
+      const rank = occupant.isWounded ? 2 : this._wouldWound(unit, occupant) ? 1 : 0;
+      if (rank > bestRank) {
+        bestRank = rank;
+        best = occupant;
+      }
+    }
+    return best;
+  }
+
+  /** Would a blow from `unit` wound `target` rather than just disarm it?
+   *  Guard only ever stops a frontal blow, and a fan is never frontal. */
+  _wouldWound(unit, target) {
+    if (target.isWounded) return true;
+    if (target.topLabel !== 'Guard') return true;
+    return !this._isFrontalHit(unit, target);
+  }
+
+  /** Frontal means the attacker is standing on the line the defender is
+   *  looking down — not merely that the two happen to face each other. The
+   *  old test compared facings alone, which called a diagonal blow frontal
+   *  and let a raised Guard stop it. A shield covers the front; it does not
+   *  cover the corner. */
+  _isFrontalHit(unit, target) {
+    if (unit.facing !== oppositeDir(target.facing)) return false;
+    const look = DIRECTION_VECTORS[target.facing];
+    return look.x !== 0 ? unit.z === target.z : unit.x === target.x;
+  }
+
   findAttackTarget(unit) {
+    if (FAN_LABELS.has(unit.topLabel)) return this._fanTarget(unit);
     const range = this.attackRange(unit);
     const minRange = this.attackMinRange(unit);
     // A reach weapon is held over the shoulder of the rank in front, so a
@@ -404,7 +460,7 @@ export class Game {
     if (!target || !ATTACK_LABELS.has(unit.topLabel)) return null;
 
     const attackDir = unit.facing;
-    const isFrontal = attackDir === oppositeDir(target.facing);
+    const isFrontal = this._isFrontalHit(unit, target);
     const disarms =
       !target.isWounded && isFrontal && target.topLabel === 'Guard' && !this._hasAdjacentRoaringEnemy(target);
 
@@ -495,7 +551,7 @@ export class Game {
 
     // Frontal iff the attacker sits exactly where the defender is looking.
     // A wounded target has no Guard showing at all, so it can never block.
-    const isFrontal = attackDir === oppositeDir(target.facing);
+    const isFrontal = this._isFrontalHit(unit, target);
     // 'inspire': fighting beside your commander, your blow drives through
     // the Guard instead of merely knocking it aside.
     const inspired = this.rallyMode === 'inspire' && this.isRallied(unit);

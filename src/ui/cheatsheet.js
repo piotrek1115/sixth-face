@@ -18,6 +18,7 @@ export const FACE_RULES = {
   Riposte: 'Survive a hit while this is up and you counter-attack for free.',
   Brace: 'An enemy shoved onto the square in front of you takes a free hit.',
   Stagger: 'Any hit on you shoves you back a tile, even one that normally would not.',
+  Sweep: 'Threatens three tiles — the one ahead and both corners ahead of it — and lands on the best opening of them. A corner is never frontal, so a sweep goes round a raised Guard.',
   Roar: 'Adjacent enemies lose their Guard block entirely.',
   Command: 'Your side gets +1 AP next turn — but the commander itself may not act that turn.',
   Waaagh: 'Your side gets +1 AP next turn — but the commander itself may not act that turn.',
@@ -124,6 +125,13 @@ export function renderCheatSheet() {
     </div>
     <p class="note">Frontal: <b>3 hits</b>. From a flank or rear: <b>2 hits</b> — the blow drives straight past the Guard.
     You can never roll <i>yourself</i> onto Wounded: a roll that would land there turns one step further, still moving a single tile.</p>
+
+    <h4>Where a blow can reach</h4>
+    <p class="note">Most faces threaten the single tile straight ahead. Three do more, and they are the
+    reason position matters: <b>Thrust</b> reaches two tiles and passes over your own front rank,
+    <b>Loose</b> shoots two to four and arcs over it, and <b>Sweep</b> covers the tile ahead plus both
+    corners ahead of it. Sweep is the only one that crosses into the next column — the others run
+    straight down your own file.</p>
 
     <h4>Terrain</h4>
     <table class="cheatTable">
