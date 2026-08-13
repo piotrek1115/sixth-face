@@ -8,7 +8,7 @@
 // a whole turn spinning a unit 180°, and it walked units back and forth
 // because each decision was made with no memory of the last one. Scoring
 // fixes both: a turn is only worth anything if it actually enables an attack
-// this turn, and undoing your own last move carries an explicit penalty.
+// this turn, and undoing your own last move is refused outright.
 import { DIR_ORDER, nextDir, oppositeDir, DIRECTION_VECTORS } from './orientation.js';
 import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS } from './units.js';
 
@@ -17,6 +17,26 @@ function nearestDistanceFrom(x, z, enemies) {
   let best = Infinity;
   for (const e of enemies) best = Math.min(best, Math.abs(x - e.x) + Math.abs(z - e.z));
   return best;
+}
+
+/** Would tipping toward `dir` leave this unit actually able to strike?
+ *
+ *  A tip does not change facing, so an attack face is worthless unless the
+ *  target already stands in front. Scoring "an attack face came up" without
+ *  that check made a unit stood beside an enemy it wasn't facing tip back and
+ *  forth forever: each tip produced an attack face, outbid turning, and ate
+ *  the AP that turning needed. Asking the rules whether the strike would
+ *  land — rather than guessing from the label — also gets reach units right
+ *  for free, since it consults their real range. */
+function couldAttackAfterTip(game, unit, dir) {
+  const before = unit.orientation.clone();
+  try {
+    const turns = unit.rollTurns(dir);
+    for (let i = 0; i < turns; i++) unit.orientation.roll(dir);
+    return ATTACK_LABELS.has(unit.topLabel) && !!game.findAttackTarget(unit);
+  } finally {
+    unit.orientation = before;
+  }
 }
 
 /** Would this unit have an attack available if it were facing `facing`?
@@ -33,7 +53,7 @@ function couldAttackFacing(game, unit, facing) {
   }
 }
 
-// Remembers each unit's last committed move so we can penalise undoing it.
+// Remembers each unit's last committed move so we can refuse to undo it.
 // Keyed by the unit object, so it disappears with the game.
 const lastMove = new WeakMap();
 
@@ -56,12 +76,6 @@ const SCORE = {
   retreatPerTile: 50,
   guardWhileEngaged: 80,
   exposedWhileEngaged: -70,
-  // Deliberately SMALLER than one tile of progress (closePerTile). It exists
-  // only to break ties away from shuffling back and forth; it must never
-  // veto a move that genuinely closes on the enemy. At -250 it did exactly
-  // that — a unit that had once stepped north would refuse to go south ever
-  // again, and whole armies stood still next to a wounded enemy leader.
-  reversal: -25,
 };
 
 // Losing the leader loses the game outright, and a leader dies to the same
@@ -95,12 +109,20 @@ function engagementBonus(topLabel, adjacentToEnemy) {
   return SCORE.exposedWhileEngaged;
 }
 
-function reversalPenalty(unit, type, dir) {
+/** Undoing your own last move is forbidden outright, not merely discouraged.
+ *
+ *  As a score it never stood a chance: a roll that brings up an attack face
+ *  is worth +300, so a -25 nudge let a unit shuttle between two tiles for
+ *  thousands of turns — arm, fail to reach the enemy standing to its SIDE,
+ *  roll back, repeat. Raising the penalty instead was tried and it vetoed
+ *  real progress. A hard ban kills two-tile cycles and leaves every other
+ *  decision untouched. */
+function isImmediateReversal(unit, type, dir) {
   const prev = lastMove.get(unit);
-  if (!prev || !dir) return 0;
+  if (!prev || !dir) return false;
   const wasMove = prev.type === 'step' || prev.type === 'roll';
   const isMove = type === 'step' || type === 'roll';
-  return wasMove && isMove && prev.dir === oppositeDir(dir) ? SCORE.reversal : 0;
+  return wasMove && isMove && prev.dir === oppositeDir(dir);
 }
 
 function scoreCandidates(game, myUnits, enemies) {
@@ -141,14 +163,14 @@ function scoreCandidates(game, myUnits, enemies) {
     // --- step ---------------------------------------------------------
     for (const dir of DIR_ORDER) {
       if (!game.canStep(unit, dir)) continue;
+      if (isImmediateReversal(unit, 'step', dir)) continue;
       const d = DIRECTION_VECTORS[dir];
       const nx = unit.x + d.x;
       const nz = unit.z + d.z;
       const there = nearestDistanceFrom(nx, nz, enemies);
       let score =
         positionalScore(unit, here, there, SCORE.closePerTile, leaderMayHide) +
-        engagementBonus(unit.topLabel, there === 1) +
-        reversalPenalty(unit, 'step', dir);
+        engagementBonus(unit.topLabel, there === 1);
       // A rallying commander wants to be within reach of its own troops,
       // because that is the only way the aura pays anything at all.
       if (unit.type.isLeader && game.rallyMode !== 'none' && game.rallyMode !== 'army') {
@@ -168,7 +190,7 @@ function scoreCandidates(game, myUnits, enemies) {
     if (game.canRollInPlace(unit)) {
       for (const dir of DIR_ORDER) {
         const newTop = unit.topAfterTurning(dir);
-        if (here <= 1 && ATTACK_LABELS.has(newTop)) {
+        if (couldAttackAfterTip(game, unit, dir)) {
           add(SCORE.rollIntoAttack + SCORE.holdContact, { type: 'rollInPlace', unit, dir });
         }
         // A leader parked out of reach should be rallying: one turn of the
@@ -185,6 +207,7 @@ function scoreCandidates(game, myUnits, enemies) {
     // --- roll ---------------------------------------------------------
     for (const dir of DIR_ORDER) {
       if (!game.canRoll(unit, dir)) continue;
+      if (isImmediateReversal(unit, 'roll', dir)) continue;
       const d = DIRECTION_VECTORS[dir];
       const nx = unit.x + d.x; // a roll always covers exactly one tile
       const nz = unit.z + d.z;
@@ -199,7 +222,6 @@ function scoreCandidates(game, myUnits, enemies) {
       // retreat, so nobody ever drew a weapon.
       if (ATTACK_LABELS.has(newTop) && there <= 2) score += SCORE.rollIntoAttack;
       score += engagementBonus(newTop, there === 1);
-      score += reversalPenalty(unit, 'roll', dir);
       add(score, { type: 'roll', unit, dir });
     }
   }

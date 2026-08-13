@@ -39,7 +39,7 @@ test('rolling in place changes the top face and keeps the tile', () => {
 
 test('it costs the same 2 AP as a travelling roll', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman');
+  const sword = findUnit(g, 'captain'); // standard-cost unit; the swordsman is LIGHT
   g.ap = 5; // headroom so spending AP does not end the turn and reset it
   const apBefore = g.ap;
   assert.equal(g.rollInPlace(sword, 'S'), true);
@@ -48,7 +48,7 @@ test('it costs the same 2 AP as a travelling roll', () => {
 
 test('it is refused with only 1 AP', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman');
+  const sword = findUnit(g, 'captain'); // standard-cost unit; the swordsman is LIGHT
   g.ap = 1;
   assert.equal(g.canRollInPlace(sword), false);
   assert.equal(g.rollInPlace(sword, 'S'), false);

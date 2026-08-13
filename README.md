@@ -173,6 +173,14 @@ atak nie jest (więc nic nie uderza). Stan siedzi w samej kości.
 
 Wyeliminuj dowódcę przeciwnika. Nie trzeba wybić armii — jak mat w szachach.
 
+**Wyczerpanie.** Jeśli przez **12 tur nikt nikogo nie trafi**, bitwa zostaje
+przerwana i rozstrzygnięta na stan armii: żywa kość liczy się za 2, ranna za 1,
+wyższy wynik wygrywa, remis przy równym. Bez tej reguły gra nie miała żadnej
+gwarancji końca — ranna kość po prostu ucieka, a pościg o równej szybkości
+nigdy jej nie dogoni (zmierzona partia szła 11 tysięcy tur). Próg 12 dobrany
+pomiarem: w normalnej bitwie najdłuższa cisza to 9 tur, więc reguła nie tyka
+zdrowych partii — jest ubezpieczeniem, nie mechaniką do grania.
+
 ### Frakcje
 
 **Ludzie** — jeden atak, potem mobilność. Na bok wychodzi im `Advance`.

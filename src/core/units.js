@@ -58,6 +58,11 @@ export const UNIT_TYPES = {
     name: 'Swordsman',
     faction: 'humans',
     isLeader: false,
+    // LIGHT. In this game mobility and ability-switching are the same axis:
+    // the only way to change what you can do is to tip the die, and tipping
+    // is how you move. So "fast" means "changes what it is often" — versatile
+    // and unpredictable, and correspondingly rarely sitting behind Guard.
+    rollCost: 1,
     // 1 roll → Strike. 3 rolls → Riposte. Sides: Stagger / Advance.
     faces: { top: 'Guard', north: 'Strike', bottom: 'Wounded', south: 'Riposte', east: 'Stagger', west: 'Advance' },
   },
@@ -66,7 +71,10 @@ export const UNIT_TYPES = {
     name: 'Pikeman',
     faction: 'humans',
     isLeader: false,
-    // 1 roll → Thrust (range 2). 3 rolls → Brace.
+    // The REACH archetype (see `reach` below): every attack face carries two
+    // tiles and strikes over the unit's own front rank.
+    reach: 2,
+    // 1 roll → Thrust. 3 rolls → Brace.
     faces: { top: 'Guard', north: 'Thrust', bottom: 'Wounded', south: 'Brace', east: 'Stagger', west: 'Advance' },
   },
   shieldbearer: {
@@ -74,6 +82,11 @@ export const UNIT_TYPES = {
     name: 'Shieldbearer',
     faction: 'humans',
     isLeader: false,
+    // HEAVY, the mirror of the above: turning this thing over costs a whole
+    // turn, so it keeps whatever face it is showing. Predictable, hard to
+    // shift, and it still walks for 1 AP — a heavy unit you can never afford
+    // to move at all would simply be left at home.
+    rollCost: 3,
     // The humans' push unit — 1 roll → Bash. This is what makes the
     // Shieldbearer-bashes-an-orc-into-the-Pikeman's-Brace combo from the
     // brief actually reachable in play (before this unit existed, only orcs
@@ -95,6 +108,7 @@ export const UNIT_TYPES = {
     name: 'Orc Boy',
     faction: 'orcs',
     isLeader: false,
+    rollCost: 1, // LIGHT — the orc mirror of the Swordsman
     // Orcs advance NORTH, so their 1-roll face is SOUTH (see note above).
     // Attacks on BOTH the forward face and a side face — the orc identity:
     // whichever way they tumble, something hits you.
@@ -105,6 +119,9 @@ export const UNIT_TYPES = {
     name: 'Brute',
     faction: 'orcs',
     isLeader: false,
+    // The orcs' reach unit — the structural mirror of the human Pikeman, so
+    // that the archetype can be measured without handing one side an edge.
+    reach: 2,
     faces: { top: 'Guard', south: 'Smash', bottom: 'Wounded', north: 'Rush', east: 'Stagger', west: 'Crush' },
   },
   mauler: {
@@ -112,6 +129,7 @@ export const UNIT_TYPES = {
     name: 'Mauler',
     faction: 'orcs',
     isLeader: false,
+    rollCost: 3, // HEAVY — the orc mirror of the Shieldbearer
     // The orcs' second push unit and second Roar carrier.
     faces: { top: 'Guard', south: 'Chop', bottom: 'Wounded', north: 'Roar', east: 'Stagger', west: 'Bash' },
   },

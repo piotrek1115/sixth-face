@@ -9,16 +9,23 @@ import {
   PCFSoftShadowMap,
   Vector3,
 } from 'three';
-import { buildBoard } from './board.js';
+import { buildBoard, TILE } from './board.js';
+import { BOARD_SIZE } from '../core/board.js';
 
 export function createSceneRig(canvas) {
   const scene = new Scene();
   scene.background = null;
 
   const camera = new PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-  // "Lekko z góry, taktyczna, czytelna" — pulled back further and steepened
-  // toward top-down for a clearer tactical read of the whole board.
-  camera.position.set(0, 18, 6);
+  // "Lekko z góry, taktyczna, czytelna" — pulled back and steepened toward
+  // top-down for a clearer tactical read of the whole board.
+  //
+  // Derived from the board's actual extent rather than hard-coded: the
+  // framing was tuned on a 6x6 grid and enlarging the board silently pushed
+  // the home rows out of shot. The ratios below reproduce the tuned 6x6 view
+  // (height 18, offset 6) and now follow whatever BOARD_SIZE is.
+  const span = BOARD_SIZE * TILE;
+  camera.position.set(0, span * 1.875, span * 0.625);
   camera.lookAt(new Vector3(0, 0, 0));
 
   // alpha:true so empty space (scene.background stays null) shows the page's

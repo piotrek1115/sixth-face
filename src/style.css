@@ -142,6 +142,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .victory .card h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: .04em; }
 .victory .card.humans h1 { color: var(--humans); }
 .victory .card.orcs h1 { color: var(--orcs); }
+.victory .card.draw h1 { color: var(--text-dim); }
 .victory .card p { color: var(--text-dim); margin: 0; }
 
 /* ---------- hint ---------- */
@@ -225,3 +226,10 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
   backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0,0,0,.35);
 }
 .faceTip b { display: block; color: var(--text); font-size: 12.5px; margin-bottom: 3px; }
+
+/* Unit-level traits on the cheat sheet card: weight and reach are properties
+   of the die itself, so they cannot be read off the face net above them. */
+.unitTraits {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--accent, #c9a227); margin: -2px 0 6px;
+}

@@ -21,9 +21,13 @@ import {
 const AP_PER_TURN = 2;
 const STEP_COST = 1;
 const ROLL_COST = 2;
+// Turns of complete quiet — nobody landing a blow on anybody — after which
+// the battle is called. Chess has the fifty-move rule for the same reason:
+// without one, a side that is behind can simply decline to fight forever.
+const STALL_LIMIT = 12;
 
 export class Game {
-  constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false } = {}) {
+  constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false, stallLimit = STALL_LIMIT } = {}) {
     this.apPerTurn = apPerTurn;
     // 'deploy' — players are still placing dice; no unit may act yet.
     // 'battle' — the normal game. A standard game starts straight in battle
@@ -47,6 +51,12 @@ export class Game {
     this.ap = this.apPerTurn;
     this.gameOver = false;
     this.winner = null;
+    this.endReason = null; // 'leader' | 'exhaustion'
+    // Turns since anyone landed a blow. Nothing else in the rules forces a
+    // battle to end: a wounded die simply runs, and a pursuer of equal speed
+    // can never catch it — observed as a chase lasting eleven thousand turns.
+    this.stallLimit = stallLimit;
+    this.turnsSinceBlood = 0;
     this.log = [];
     this._woundedActed = new Set(); // unit ids that used their one wounded action this turn
     this._leaderIsCommanding = false;
@@ -58,12 +68,14 @@ export class Game {
     }
   }
 
-  // 4 dice a side (3 rank-and-file + the leader), centred on their home row.
+  // A full home row a side, mirrored around the leader in the centre: the
+  // wings are the cheap line units and the tougher ones close ranks next to
+  // the leader, so a flank attack has to chew through the weak end first.
   _setupUnits() {
     const backRow = BOARD_SIZE - 1;
-    const firstX = Math.floor((BOARD_SIZE - 4) / 2); // centre a 4-wide line
-    const humans = ['swordsman', 'captain', 'pikeman', 'shieldbearer'];
-    const orcs = ['orcBoy', 'warboss', 'brute', 'mauler'];
+    const humans = ['swordsman', 'pikeman', 'shieldbearer', 'captain', 'shieldbearer', 'pikeman', 'swordsman'];
+    const orcs = ['orcBoy', 'brute', 'mauler', 'warboss', 'mauler', 'brute', 'orcBoy'];
+    const firstX = Math.floor((BOARD_SIZE - humans.length) / 2); // centre the line
     humans.forEach((id, i) => this.units.push(new Unit(id, 'humans', firstX + i, 0, 'S')));
     orcs.forEach((id, i) => this.units.push(new Unit(id, 'orcs', firstX + i, backRow, 'N')));
   }
@@ -203,13 +215,24 @@ export class Game {
     return Math.abs(leader.x - unit.x) + Math.abs(leader.z - unit.z) <= radius;
   }
 
-  // Rush ability: a unit whose top face is Rush rolls for 1 AP instead of 2
-  // — "reckless charge." A rallied unit gets the same discount from standing
-  // beside its commander.
+  // What it costs this unit to tip its die, travelling or in place.
+  //
+  // The base is a property of the UNIT, which is where light and heavy live:
+  // in this game the only way to change what you can do is to tip the die,
+  // and tipping is how you move — so mobility and versatility are one axis.
+  // A light die changes what it is for 1 AP; a heavy one spends a whole turn
+  // on it and therefore mostly keeps the face it has.
+  //
+  // Rush and the rally discounts then cut whatever that unit's own base is,
+  // rather than resetting everyone to the same 1 AP — otherwise a heavy die
+  // showing Rush would suddenly be the nimblest thing on the board.
   _rollCost(unit) {
-    if (unit.topLabel === 'Rush') return 1;
+    const base = unit.type.rollCost ?? ROLL_COST;
+    const discounted = Math.max(1, base - 1);
+    if (unit.topLabel === 'Rush') return discounted;
     // 'inspire' buys harder blows, not cheaper rolls — see attack().
-    return this.rallyMode === 'adjacent' || this.rallyMode === 'aura2' ? (this.isRallied(unit) ? 1 : ROLL_COST) : ROLL_COST;
+    const rallyDiscounts = this.rallyMode === 'adjacent' || this.rallyMode === 'aura2';
+    return rallyDiscounts && this.isRallied(unit) ? discounted : base;
   }
 
   canRoll(unit, dir) {
@@ -273,8 +296,12 @@ export class Game {
     return true;
   }
 
+  /** How far this unit's current face reaches. A reach unit carries its
+   *  length on EVERY attack face — that is what makes it an archetype rather
+   *  than one lucky side of the die. */
   attackRange(unit) {
-    return RANGE_BY_LABEL[unit.topLabel] ?? DEFAULT_RANGE;
+    const fromFace = RANGE_BY_LABEL[unit.topLabel] ?? DEFAULT_RANGE;
+    return Math.max(fromFace, unit.type.reach ?? DEFAULT_RANGE);
   }
 
   canAttack(unit) {
@@ -287,13 +314,21 @@ export class Game {
    *  in the way blocks the line, exactly like a real spear/blade would. */
   findAttackTarget(unit) {
     const range = this.attackRange(unit);
+    // A reach weapon is held over the shoulder of the rank in front, so a
+    // FRIENDLY body does not stop it — which is the whole point of the
+    // archetype: it makes standing two deep in one column worth doing, and
+    // that is the only reason anyone would break a flat line. An enemy still
+    // stops it; you hit whoever you reach first.
+    const overOwn = (unit.type.reach ?? DEFAULT_RANGE) > DEFAULT_RANGE;
     const d = DIRECTION_VECTORS[unit.facing];
     for (let step = 1; step <= range; step++) {
       const x = unit.x + d.x * step;
       const z = unit.z + d.z * step;
       if (!inBounds(x, z)) return null;
       const occupant = unitAt(this.units, x, z);
-      if (occupant) return occupant.faction !== unit.faction ? occupant : null;
+      if (!occupant) continue;
+      if (occupant.faction !== unit.faction) return occupant;
+      if (!overOwn) return null;
     }
     return null;
   }
@@ -372,6 +407,7 @@ export class Game {
         this._pushLog(`${pushedUnit.type.name} is eliminated!`);
         if (pushedUnit.type.isLeader) {
           this.gameOver = true;
+          this.endReason = 'leader';
           this.winner = u.faction;
           this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
         }
@@ -382,6 +418,11 @@ export class Game {
   attack(unit) {
     if (!this.canAttack(unit)) return false;
     const target = this.findAttackTarget(unit);
+    // Every blow in the game — including the Brace and Riposte reactions this
+    // call goes on to trigger — happens below, so one reset here covers them
+    // all. It must NOT live in previewAttack: that only inspects a blow, and
+    // the AI runs it constantly, which would keep the clock pinned at zero.
+    this.turnsSinceBlood = 0;
     const label = unit.topLabel;
     const attackDir = unit.facing; // direction the hit travels: attacker → target
 
@@ -444,6 +485,7 @@ export class Game {
       this._pushLog(`${target.type.name} is eliminated!`);
       if (target.type.isLeader) {
         this.gameOver = true;
+        this.endReason = 'leader';
         this.winner = unit.faction;
         this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
       }
@@ -456,6 +498,7 @@ export class Game {
           this._pushLog(`${unit.type.name} is eliminated!`);
           if (unit.type.isLeader) {
             this.gameOver = true;
+            this.endReason = 'leader';
             this.winner = target.faction;
             this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
           }
@@ -486,7 +529,31 @@ export class Game {
     this._leaderIsCommanding = rallied && this.rallyMode === 'command';
     this.ap = this.apPerTurn + (rallied ? 1 : 0);
     this.turnNumber += 1;
+    this.turnsSinceBlood += 1;
     this._pushLog(`— Turn ${this.turnNumber}: ${this.currentFaction.toUpperCase()}${rallied ? ' (rallied +1 AP)' : ''} —`);
+    if (this.turnsSinceBlood >= this.stallLimit) this._endByExhaustion();
+  }
+
+  /** How much fight a side has left. A wounded die is one blow from gone, so
+   *  it counts half — which is what makes running away with a wounded unit a
+   *  losing plan rather than a winning one. */
+  armyStrength(faction) {
+    const alive = this.aliveUnits(faction);
+    return alive.length * 2 - alive.filter((u) => u.isWounded).length;
+  }
+
+  /** Nobody has landed a blow for `stallLimit` turns: the battle is called on
+   *  the state of the two armies. */
+  _endByExhaustion() {
+    const h = this.armyStrength('humans');
+    const o = this.armyStrength('orcs');
+    this.gameOver = true;
+    this.endReason = 'exhaustion';
+    this.winner = h === o ? null : h > o ? 'humans' : 'orcs';
+    this._pushLog(
+      `— No blow landed for ${this.stallLimit} turns — battle called (humans ${h} : ${o} orcs) —`
+    );
+    this._pushLog(this.winner ? `${this.winner.toUpperCase()} WIN on strength` : 'DRAW — both armies spent');
   }
 
   _maybeEndTurn() {

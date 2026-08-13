@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 6;
+export const BOARD_SIZE = 7;
 
 export function inBounds(x, z) {
   return x >= 0 && x < BOARD_SIZE && z >= 0 && z < BOARD_SIZE;

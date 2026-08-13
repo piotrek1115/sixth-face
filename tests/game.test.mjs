@@ -8,25 +8,31 @@ function findUnit(game, unitTypeId) {
 
 test('STEP: 1 AP, any direction, orientation and facing both untouched', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman'); // spawns at x=1,z=0, facing S
+  const sword = findUnit(g, 'swordsman'); // on the human home row, facing S
 
   const topBefore = sword.topLabel;
   const facingBefore = sword.facing;
   const quatBefore = sword.orientation.q.clone();
   const apBefore = g.ap;
+  const zBefore = sword.z;
 
-  const ok = g.step(sword, 'W'); // west is open at spawn
+  // Forward, into the empty rank ahead. Deliberately NOT a sideways step:
+  // the home row is full, so which neighbours are free depends on where in
+  // the line this unit happens to stand.
+  const ok = g.step(sword, 'S');
   assert.equal(ok, true);
   assert.equal(g.ap, apBefore - 1, 'a step must cost exactly 1 AP');
   assert.equal(sword.topLabel, topBefore, 'a step must not change the top face');
   assert.equal(sword.facing, facingBefore, 'a step must not change facing');
   assert.ok(sword.orientation.q.equals(quatBefore), 'a step must not touch the orientation quaternion at all');
-  assert.equal(sword.x, 0, 'the unit should still have physically moved one tile west');
+  assert.equal(sword.z, zBefore + 1, 'the unit should still have physically moved one tile');
 });
 
 test('ROLL: 2 AP, any direction, physically tips and changes the top face', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman');
+  // The captain, deliberately: roll cost is a property of the UNIT now, and
+  // the swordsman this used to use is the LIGHT archetype at 1 AP.
+  const sword = findUnit(g, 'captain');
 
   g.ap = 5; // headroom, so spending the AP doesn't end the turn and reset it
   const apBefore = g.ap;
@@ -40,7 +46,7 @@ test('ROLL: 2 AP, any direction, physically tips and changes the top face', () =
 
 test('roll requires 2 AP: refused with only 1 AP left, step still works', () => {
   const g = new Game();
-  const sword = findUnit(g, 'swordsman');
+  const sword = findUnit(g, 'captain'); // standard cost — see the note above
   g.ap = 1;
   assert.equal(g.canRoll(sword, 'S'), false, 'a roll must be unaffordable with only 1 AP');
   assert.equal(g.roll(sword, 'S'), false);

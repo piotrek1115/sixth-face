@@ -22,7 +22,7 @@ export function createHud(root, actions) {
     <div class="deployPanel" id="deployPanel" hidden></div>
     <div class="cheatSheet" id="cheatSheet" hidden></div>
     <div class="log" id="log"></div>
-    <div class="hint" id="hint"><b>Point at any die</b> — even an enemy's — and four purple tabs appear on its edges, each naming the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> on your own die to tip it (2 AP, stays put); the gold <b>corner arrows</b> turn it to face that way (1 AP).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> (2 AP) — the tile spells out which one you can afford. Hover anything and hold still for a second to see what it does.</div>
+    <div class="hint" id="hint"><b>Point at any die</b> — even an enemy's — and four purple tabs appear on its edges, each naming the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> on your own die to tip it (stays put; costs 1–3 AP — light dice tip cheaply, heavy ones cost a whole turn); the gold <b>corner arrows</b> turn it to face that way (1 AP).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> — the tile spells out which one you can afford. Hover anything and hold still for a second to see what it does.</div>
   `;
 
   root.querySelector('#endTurnBtn').addEventListener('click', () => actions.onEndTurn());
@@ -76,7 +76,7 @@ export function createHud(root, actions) {
       log.scrollTop = log.scrollHeight;
 
       if (game.gameOver) {
-        showVictory(root, game.winner);
+        showVictory(root, game.winner, game.endReason);
       } else {
         const v = root.querySelector('.victory');
         if (v) v.remove();
@@ -147,7 +147,9 @@ function renderUnitPanel(el, game, unit, actions) {
     <div class="actions">
       <div class="actionGroupLabel">Step · 1 AP · keeps top face</div>
       ${['N', 'E', 'S', 'W'].map((dir) => stepButton(game, unit, dir, canAct)).join('')}
-      <div class="actionGroupLabel">Roll · 2 AP · changes top face, moves a tile</div>
+      <div class="actionGroupLabel">Roll · ${game._rollCost(unit)} AP · changes top face, moves a tile${
+        unit.type.rollCost === 1 ? ' · LIGHT' : unit.type.rollCost > 2 ? ' · HEAVY' : ''
+      }</div>
       ${['N', 'E', 'S', 'W'].map((dir) => rollButton(game, unit, dir, canAct)).join('')}
       <div class="actionGroupLabel">Face · 1 AP · click a corner of the die</div>
       <button data-act="attack" class="attack ${preview?.lethal || preview?.wounds ? 'lethal' : ''}" ${!canAttackNow ? 'disabled' : ''}>Attack (${topLabel})</button>
@@ -194,11 +196,20 @@ function rollButton(game, unit, dir, canAct) {
   return `<button data-act="roll" data-dir="${dir}" ${disabled ? 'disabled' : ''}>Roll ${DIR_GLYPH[dir]}</button>`;
 }
 
-function showVictory(root, winner) {
+function showVictory(root, winner, reason) {
   if (root.querySelector('.victory')) return;
   const div = document.createElement('div');
   div.className = 'victory';
-  div.innerHTML = `<div class="card ${winner}"><h1>${winner.toUpperCase()} WIN</h1><p>The enemy leader has fallen. Refresh to play again.</p></div>`;
+  // A battle can now also be called for exhaustion, which can end level — so
+  // neither the headline nor the explanation can assume a winner exists.
+  const headline = winner ? `${winner.toUpperCase()} WIN` : 'DRAW';
+  const why =
+    reason === 'exhaustion'
+      ? winner
+        ? 'Neither side could land a blow — the battle is called on the strength of what is left standing.'
+        : 'Neither side could land a blow, and both armies are equally spent.'
+      : 'The enemy leader has fallen.';
+  div.innerHTML = `<div class="card ${winner ?? 'draw'}"><h1>${headline}</h1><p>${why} Refresh to play again.</p></div>`;
   root.appendChild(div);
 }
 
