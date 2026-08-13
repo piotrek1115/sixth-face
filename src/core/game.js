@@ -6,19 +6,24 @@ import {
   PUSH_LABELS,
   RANGE_BY_LABEL,
   DEFAULT_RANGE,
+  MIN_RANGE_BY_LABEL,
+  DEFAULT_MIN_RANGE,
   WOUNDED_LABEL,
   RALLY_LABELS,
   labelForAxisKey,
 } from './units.js';
 
-// 2, not 3 — and the reason is the damage ladder, not taste. A flank kill
-// costs two attacks; if a side's whole turn budget is 3 AP, one unit can
-// close AND land both hits in a single turn, so the victim never gets to
-// respond (measured: games ended on turn 5 with the leader soloed down). At
-// 2 AP a kill consumes your entire turn, which is the window the opponent
-// needs. Measured across the AI sim: 3 AP → turn 5, 2 of 8 dead; 2 AP →
-// turn 62, 5 of 8 dead, i.e. an actual battle of attrition.
-const AP_PER_TURN = 2;
+// 3, and the history matters because 2 was right once. On a 6x6 board with
+// four dice a side, 3 AP let one unit close AND land both hits of a flank
+// kill in a single turn, so the victim never got a reply — games ended on
+// turn 5. That reason is gone: the board is 7x7, the leader sits behind two
+// ranks, and a kill no longer fits in one turn.
+//
+// What replaced it is the opposite pressure. Almost every unit trait now
+// costs a tip: a heavy die needs 3 AP to turn over at all, and a shooter has
+// to spend a tip loading before it can spend an action loosing. At 2 AP those
+// units simply never get to be themselves.
+const AP_PER_TURN = 3;
 const STEP_COST = 1;
 const ROLL_COST = 2;
 // Turns of complete quiet — nobody landing a blow on anybody — after which
@@ -74,13 +79,31 @@ export class Game {
   // A full home row a side, mirrored around the leader in the centre: the
   // wings are the cheap line units and the tougher ones close ranks next to
   // the leader, so a flank attack has to chew through the weak end first.
+  // Two ranks a side, mirrored. The front rank is the wall of bodies; the
+  // back rank is what only works from behind one — shooters, who need to be
+  // kept clear of contact to be worth anything, and the leader, who has no
+  // business in the front line.
   _setupUnits() {
-    const backRow = BOARD_SIZE - 1;
-    const humans = ['swordsman', 'pikeman', 'shieldbearer', 'captain', 'shieldbearer', 'pikeman', 'swordsman'];
-    const orcs = ['orcBoy', 'brute', 'mauler', 'warboss', 'mauler', 'brute', 'orcBoy'];
-    const firstX = Math.floor((BOARD_SIZE - humans.length) / 2); // centre the line
-    humans.forEach((id, i) => this.units.push(new Unit(id, 'humans', firstX + i, 0, 'S')));
-    orcs.forEach((id, i) => this.units.push(new Unit(id, 'orcs', firstX + i, backRow, 'N')));
+    const back = BOARD_SIZE - 1;
+    const line = {
+      humans: ['swordsman', 'shieldbearer', 'pikeman', 'shieldbearer', 'swordsman'],
+      orcs: ['orcBoy', 'mauler', 'brute', 'mauler', 'orcBoy'],
+    };
+    const support = {
+      humans: ['archer', 'captain', 'archer'],
+      orcs: ['hurler', 'warboss', 'hurler'],
+    };
+    const centred = (n) => Math.floor((BOARD_SIZE - n) / 2);
+
+    for (const [faction, rows] of [
+      ['humans', { support: 0, line: 1, facing: 'S' }],
+      ['orcs', { support: back, line: back - 1, facing: 'N' }],
+    ]) {
+      const l = line[faction];
+      const sup = support[faction];
+      l.forEach((id, i) => this.units.push(new Unit(id, faction, centred(l.length) + i, rows.line, rows.facing)));
+      sup.forEach((id, i) => this.units.push(new Unit(id, faction, centred(sup.length) + i, rows.support, rows.facing)));
+    }
   }
 
   /** Place a die during setup. Returns the new unit, or null if the tile is
@@ -324,6 +347,11 @@ export class Game {
     return Math.max(fromFace, unit.type.reach ?? DEFAULT_RANGE);
   }
 
+  /** The closest a blow from this face can land. Only missiles have one. */
+  attackMinRange(unit) {
+    return MIN_RANGE_BY_LABEL[unit.topLabel] ?? DEFAULT_MIN_RANGE;
+  }
+
   canAttack(unit) {
     if (!this.canAct(unit)) return false;
     return ATTACK_LABELS.has(unit.topLabel) && !!this.findAttackTarget(unit);
@@ -334,12 +362,17 @@ export class Game {
    *  in the way blocks the line, exactly like a real spear/blade would. */
   findAttackTarget(unit) {
     const range = this.attackRange(unit);
+    const minRange = this.attackMinRange(unit);
     // A reach weapon is held over the shoulder of the rank in front, so a
     // FRIENDLY body does not stop it — which is the whole point of the
     // archetype: it makes standing two deep in one column worth doing, and
     // that is the only reason anyone would break a flat line. An enemy still
     // stops it; you hit whoever you reach first.
-    const overOwn = (unit.type.reach ?? DEFAULT_RANGE) > DEFAULT_RANGE;
+    // A polearm is held over your own front rank; a missile arcs over it.
+    // Either way a FRIENDLY body is not what stops the blow — stone is, and
+    // so is the first enemy.
+    const isMissile = minRange > DEFAULT_MIN_RANGE;
+    const overOwn = (unit.type.reach ?? DEFAULT_RANGE) > DEFAULT_RANGE || isMissile;
     const d = DIRECTION_VECTORS[unit.facing];
     for (let step = 1; step <= range; step++) {
       const x = unit.x + d.x * step;
@@ -348,7 +381,14 @@ export class Game {
       if (isWall(this.terrain, x, z)) return null; // a blow does not travel through stone
       const occupant = unitAt(this.units, x, z);
       if (!occupant) continue;
-      if (occupant.faction !== unit.faction) return occupant;
+      // An ENEMY inside the minimum range fouls the shot — you cannot loose
+      // a bow at someone already on top of you, which is what keeps a shooter
+      // out of the melee. A friendly that close is simply arced over, the
+      // same as any other friendly in the lane.
+      if (occupant.faction !== unit.faction) {
+        if (step < minRange) return null;
+        return occupant;
+      }
       if (!overOwn) return null;
     }
     return null;
@@ -446,6 +486,7 @@ export class Game {
     this.turnsSinceBlood = 0;
     const label = unit.topLabel;
     const attackDir = unit.facing; // direction the hit travels: attacker → target
+    const isMissile = this.attackMinRange(unit) > DEFAULT_MIN_RANGE;
 
     // Read the target's PRE-hit state — applyHit is about to rotate it away.
     const wasStagger = target.topLabel === 'Stagger';
@@ -495,6 +536,19 @@ export class Game {
     if (push && this._isAdjacent(unit, { x: vacatedX, z: vacatedZ })) {
       unit.x = vacatedX;
       unit.z = vacatedZ;
+    }
+
+    // Loosing spends the shot: the die tips off its missile face, so a
+    // shooter runs on a rhythm of load, loose, load. Without this the bow
+    // stays up forever and a shooter is a free tap of damage at 1 AP a turn.
+    // Which face it lands on is decided by the die's own topology — that is
+    // the design question when you draw a shooter's net, not a rule.
+    // applyRollInPlace carries the usual skip, so loosing can never wound you.
+    if (isMissile) {
+      unit.lastLooseTip = { dir: unit.facing, turns: unit.applyRollInPlace(unit.facing) };
+      this._pushLog(`${unit.type.name} lowers the bow → top: ${unit.topLabel}`);
+    } else {
+      unit.lastLooseTip = null;
     }
 
     const outcome = died ? 'finished off' : target.isWounded ? 'WOUNDED' : `top: ${target.topLabel}`;

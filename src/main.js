@@ -357,6 +357,7 @@ function animateAttack(unit) {
   const targetFrom = gridToWorld(target.x, target.z);
   const attackerFrom = gridToWorld(unit.x, unit.z);
   const targetQuat = targetView.dieMesh.quaternion.clone();
+  const attackerQuat = attackerView.dieMesh.quaternion.clone();
   const attackDir = unit.facing;
   const preAlive = target.alive;
 
@@ -368,10 +369,17 @@ function animateAttack(unit) {
   // unit logically while its die stayed put.
   const attackerTo = gridToWorld(unit.x, unit.z);
   const moved = attackerTo.x !== attackerFrom.x || attackerTo.z !== attackerFrom.z;
+  // Loosing tips the shooter's OWN die, so that rotation has to be played or
+  // the drawn cube keeps showing a bow the rules have already lowered — the
+  // exact desync the brief warns about. A shooter does not lunge; it looses
+  // and the bow comes down.
+  const looseTip = unit.lastLooseTip;
   activeAnimations.set(unit.id, {
-    anim: moved
-      ? new StepAnimation(attackerView, attackerFrom, attackerTo)
-      : new LungeAnimation(attackerView, attackerFrom, attackDir),
+    anim: looseTip
+      ? new RollInPlaceAnimation(attackerView, attackerTo, looseTip.dir, looseTip.turns, attackerQuat)
+      : moved
+        ? new StepAnimation(attackerView, attackerFrom, attackerTo)
+        : new LungeAnimation(attackerView, attackerFrom, attackDir),
     onDone: () => attackerView.syncFacing(attackerTo.x, attackerTo.z),
   });
 

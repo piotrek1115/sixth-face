@@ -33,20 +33,26 @@ test('ROLL: 2 AP, any direction, physically tips and changes the top face', () =
   // The captain, deliberately: roll cost is a property of the UNIT now, and
   // the swordsman this used to use is the LIGHT archetype at 1 AP.
   const sword = findUnit(g, 'captain');
+  // Out into the empty middle: the army now deploys in TWO ranks, so a unit
+  // left on its spawn has its own front line standing in the way.
+  sword.x = 3;
+  sword.z = 3;
 
   g.ap = 5; // headroom, so spending the AP doesn't end the turn and reset it
   const apBefore = g.ap;
   const topBefore = sword.topLabel;
-  const ok = g.roll(sword, 'S'); // south is open at spawn
+  const ok = g.roll(sword, 'S');
   assert.equal(ok, true);
   assert.equal(g.ap, apBefore - 2, 'a roll must cost exactly 2 AP');
   assert.notEqual(sword.topLabel, topBefore, 'a roll must change the top face');
-  assert.equal(sword.z, 1, 'the unit should have physically moved one tile south');
+  assert.equal(sword.z, 4, 'the unit should have physically moved one tile south');
 });
 
 test('roll requires 2 AP: refused with only 1 AP left, step still works', () => {
   const g = new Game();
   const sword = findUnit(g, 'captain'); // standard cost — see the note above
+  sword.x = 3;
+  sword.z = 3; // clear of its own second rank, as above
   g.ap = 1;
   assert.equal(g.canRoll(sword, 'S'), false, 'a roll must be unaffordable with only 1 AP');
   assert.equal(g.roll(sword, 'S'), false);
@@ -158,10 +164,12 @@ test('Bash pushes the target back one tile when the tile behind it is free', () 
   const orcBoy = findUnit(g, 'orcBoy'); // has Bash on its south face
   const target = findUnit(g, 'swordsman');
   // Place both away from the board edge so there's room behind the target to push into.
+  // Rows 0-1 and 5-6 are the two deployment ranks, so the push needs to
+  // happen in the empty middle or the tile behind the target is occupied.
   target.x = 2;
-  target.z = 2;
+  target.z = 3;
   orcBoy.x = 2;
-  orcBoy.z = 3;
+  orcBoy.z = 4;
   orcBoy.facing = 'N';
   target.facing = 'W'; // not facing the orc, so Guard (if up) would not block — isolate push behaviour
   target.orientation.roll('E'); // knock target off Guard so we know exactly what's on top

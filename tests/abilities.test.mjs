@@ -235,13 +235,15 @@ test('Stagger: even a non-push attack shoves a Staggered target back a tile', ()
   const sword = findUnit(g, 'swordsman');
   const warboss = findUnit(g, 'warboss'); // Chop is not a push label
 
+  // The empty middle: rows 0-1 and 5-6 hold the two deployment ranks, so a
+  // knock-back nearer the edge would have nowhere to go.
   sword.x = 2;
-  sword.z = 2;
+  sword.z = 3;
   sword.facing = 'W'; // not frontal, so Guard never enters into it
   forceTop(sword, 'W', 'Stagger'); // Stagger sits on the east face
 
   warboss.x = 2;
-  warboss.z = 3;
+  warboss.z = 4;
   warboss.facing = 'N';
   forceTop(warboss, 'N', 'Chop');
 

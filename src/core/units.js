@@ -38,10 +38,17 @@
 // is north. Orcs spawn facing north and roll north to advance, so their
 // 1-roll face is SOUTH — swapped from what you'd naively guess.
 
-export const ATTACK_LABELS = new Set(['Strike', 'Chop', 'Crush', 'Smash', 'Bash', 'Thrust']);
+export const ATTACK_LABELS = new Set(['Strike', 'Chop', 'Crush', 'Smash', 'Bash', 'Thrust', 'Loose']);
 export const PUSH_LABELS = new Set(['Bash']);
-export const RANGE_BY_LABEL = { Thrust: 2 };
+export const RANGE_BY_LABEL = { Thrust: 2, Loose: 4 };
 export const DEFAULT_RANGE = 1;
+
+/** How close is TOO close. A missile needs room: you cannot loose a bow at
+ *  someone already on top of you. This is what makes a shooter positional
+ *  rather than simply better — it has to be kept at a distance to be worth
+ *  anything, and running it down is a real answer to it. */
+export const MIN_RANGE_BY_LABEL = { Loose: 2 };
+export const DEFAULT_MIN_RANGE = 1;
 
 /** The single wound state, shared by every unit type. A unit showing this
  *  is not dead — it is one more hit away from dead (see Unit.applyHit). */
@@ -93,6 +100,17 @@ export const UNIT_TYPES = {
     // had a push, so a human Brace could never be triggered).
     faces: { top: 'Guard', north: 'Bash', bottom: 'Wounded', south: 'Brace', east: 'Stagger', west: 'Advance' },
   },
+  archer: {
+    id: 'archer',
+    name: 'Archer',
+    faction: 'humans',
+    isLeader: false,
+    // The bow sits on the 1-roll-forward face, so drawing it is the natural
+    // first thing this die does. Note it is a FACE, not a unit trait: you are
+    // a shooter only while the bow is up, and a knife-fighter the moment
+    // something tips you off it. Guard is the other side of that coin.
+    faces: { top: 'Guard', north: 'Loose', bottom: 'Wounded', south: 'Strike', east: 'Stagger', west: 'Advance' },
+  },
   captain: {
     id: 'captain',
     name: 'Captain',
@@ -132,6 +150,14 @@ export const UNIT_TYPES = {
     rollCost: 3, // HEAVY — the orc mirror of the Shieldbearer
     // The orcs' second push unit and second Roar carrier.
     faces: { top: 'Guard', south: 'Chop', bottom: 'Wounded', north: 'Roar', east: 'Stagger', west: 'Bash' },
+  },
+  hurler: {
+    id: 'hurler',
+    name: 'Hurler',
+    faction: 'orcs',
+    isLeader: false,
+    // The orc mirror — a thrown rock rather than an arrow, same geometry.
+    faces: { top: 'Guard', south: 'Loose', bottom: 'Wounded', north: 'Roar', east: 'Stagger', west: 'Chop' },
   },
   warboss: {
     id: 'warboss',

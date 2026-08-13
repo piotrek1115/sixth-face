@@ -22,7 +22,10 @@ test('a light die tips for 1 AP, a standard one for 2, a heavy one for 3', () =>
 });
 
 test('on a 2 AP turn the heavy die cannot change its face at all, but still walks', () => {
-  const g = new Game();
+  // Explicitly 2 AP: the standard turn is 3 now, but a turn can still drop to
+  // 2 (a commander spending its own turn on orders does not raise everyone),
+  // and the point of a heavy die is that some turns it simply cannot tip.
+  const g = new Game({ apPerTurn: 2 });
   const heavy = findUnit(g, 'shieldbearer');
   assert.equal(g.ap, 2);
   assert.equal(g.canRoll(heavy, 'S'), false, 'three AP of tipping is beyond a two AP turn');
@@ -41,7 +44,7 @@ test('the same die can tip on a 3 AP turn — and it costs the whole turn', () =
 });
 
 test('a light die can tip twice in a single 2 AP turn', () => {
-  const g = new Game();
+  const g = new Game({ apPerTurn: 2 });
   const light = findUnit(g, 'swordsman');
   assert.equal(g.roll(light, 'S'), true);
   assert.equal(g.ap, 1, 'a light tip leaves half the turn still in hand');
