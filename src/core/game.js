@@ -33,8 +33,19 @@ const ROLL_COST = 2;
 const STALL_LIMIT = 12;
 
 export class Game {
-  constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false, stallLimit = STALL_LIMIT } = {}) {
+  constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false, stallLimit = STALL_LIMIT,
+                economy = 'pool' } = {}) {
     this.apPerTurn = apPerTurn;
+    // How actions are paid for:
+    //   'pool'     — everything comes out of the shared AP pool (the original)
+    //   'freestep' — every die gets ONE free Step-or-Turn per turn and AP buys
+    //                nothing but tipping and attacking.
+    // 'freestep' exists because a numerous faction is impossible under 'pool':
+    // eight goblins sharing three AP are five statues a turn. Under 'freestep'
+    // numbers buy board presence while AP still rations who actually does
+    // something — which is the game's thesis stated literally: walking is
+    // free, re-arming is the whole economy.
+    this.economy = economy;
     // 'deploy' — players are still placing dice; no unit may act yet.
     // 'battle' — the normal game. A standard game starts straight in battle
     // with the fixed line-up; a custom game starts empty in deploy.
@@ -68,6 +79,7 @@ export class Game {
     this.turnsSinceBlood = 0;
     this.log = [];
     this._woundedActed = new Set(); // unit ids that used their one wounded action this turn
+    this._freeUsed = new Set(); // unit ids that spent their free Step-or-Turn this turn
     this._leaderIsCommanding = false;
     if (!deploy) {
       this._setupUnits();
@@ -161,13 +173,39 @@ export class Game {
     if (this.log.length > 200) this.log.shift();
   }
 
-  canAct(unit) {
+  /** Eligibility that has nothing to do with the AP pool: is this die even
+   *  allowed to do something right now? Split out because a free Step must be
+   *  legal at 0 AP. */
+  _canActBase(unit) {
     if (this.phase !== 'battle') return false; // nothing acts while dice are being placed
-    if (this.gameOver || !unit.alive || unit.faction !== this.currentFaction || this.ap <= 0) return false;
+    if (this.gameOver || !unit.alive || unit.faction !== this.currentFaction) return false;
     // A commander who bought the army an extra AP this turn is busy issuing
     // orders and cannot act itself — the bonus is paid for with its tempo.
     if (this._leaderIsCommanding && unit.type.isLeader) return false;
     return true;
+  }
+
+  canAct(unit) {
+    return this._canActBase(unit) && this.ap > 0;
+  }
+
+  /** Has this die still got its one free Step-or-Turn? Always false under the
+   *  'pool' economy, where no action is free. */
+  hasFreeAction(unit) {
+    return this.economy === 'freestep' && !this._freeUsed.has(unit.id);
+  }
+
+  /** Moving and turning are the two actions the 'freestep' economy hands out
+   *  for nothing. Under 'pool' they are bought like everything else. */
+  _canMoveOrTurn(unit, cost) {
+    if (!this._canActBase(unit)) return false;
+    return this.economy === 'freestep' ? this.hasFreeAction(unit) : this.ap >= cost;
+  }
+
+  /** Charge a move/turn to whichever purse this economy uses. */
+  _payMoveOrTurn(unit, cost) {
+    if (this.economy === 'freestep') this._freeUsed.add(unit.id);
+    else this.ap -= cost;
   }
 
   /** Bounds/occupancy only — independent of which action (step or roll) the
@@ -200,7 +238,7 @@ export class Game {
   }
 
   canStep(unit, dir) {
-    if (!this.canAct(unit) || this.ap < STEP_COST) return false;
+    if (!this._canMoveOrTurn(unit, STEP_COST)) return false;
     if (unit.isWounded && this.hasSpentWoundedAction(unit)) return false;
     const d = DIRECTION_VECTORS[dir];
     for (let s = 1; s <= this._stepDistance(unit); s++) {
@@ -217,7 +255,7 @@ export class Game {
     if (unit.isWounded) this._woundedActed.add(unit.id);
     const distance = this._stepDistance(unit);
     for (let s = 0; s < distance; s++) unit.applyStep(dir);
-    this.ap -= STEP_COST;
+    this._payMoveOrTurn(unit, STEP_COST);
     this._pushLog(
       `${unit.type.name} steps ${dir}${distance > 1 ? ` x${distance} (Advance)` : ''} → top unchanged: ${unit.topLabel}`
     );
@@ -328,13 +366,13 @@ export class Game {
 
   canTurn(unit) {
     // A wounded unit has exactly one option left: drag itself one tile.
-    return this.canAct(unit) && !unit.isWounded;
+    return this._canMoveOrTurn(unit, 1) && !unit.isWounded;
   }
 
   turn(unit, clockwise = true) {
     if (!this.canTurn(unit)) return false;
     unit.applyTurn(clockwise);
-    this.ap -= 1;
+    this._payMoveOrTurn(unit, 1);
     this._pushLog(`${unit.type.name} turns ${clockwise ? 'CW' : 'CCW'} → facing: ${unit.facing}`);
     this._maybeEndTurn();
     return true;
@@ -646,6 +684,7 @@ export class Game {
   endTurn() {
     if (this.gameOver) return;
     this._woundedActed.clear();
+    this._freeUsed.clear();
     this.currentFaction = this.currentFaction === 'humans' ? 'orcs' : 'humans';
     // Command / Waaagh ability: if the incoming faction's leader is already
     // showing its rally face, the turn opens with a bonus AP.
@@ -687,7 +726,20 @@ export class Game {
     this._pushLog(this.winner ? `${this.winner.toUpperCase()} WIN on strength` : 'DRAW — both armies spent');
   }
 
+  /** Is anyone on this side still holding an unspent free Step-or-Turn they
+   *  could legally use? Under 'freestep' an empty AP pool no longer means the
+   *  turn is over. */
+  _anyFreeActionLeft() {
+    if (this.economy !== 'freestep') return false;
+    return this.aliveUnits(this.currentFaction).some(
+      (u) =>
+        this.hasFreeAction(u) &&
+        (this.canTurn(u) || Object.keys(DIRECTION_VECTORS).some((d) => this.canStep(u, d)))
+    );
+  }
+
   _maybeEndTurn() {
-    if (this.ap <= 0 && !this.gameOver) this.endTurn();
+    if (this.gameOver || this.ap > 0 || this._anyFreeActionLeft()) return;
+    this.endTurn();
   }
 }

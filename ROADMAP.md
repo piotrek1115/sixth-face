@@ -51,6 +51,36 @@ Mierzymy:
 przekręcanie nadal wygląda na drogie. **Jeśli rdzeń się rozmywa — cofamy
 i szukamy innego rozwiązania na hordę.** To jest faza z prawem weta.
 
+### WYNIK (120 sparowanych rozstawień, `tools/ab-economy.mjs`)
+
+| metryka | pool | freestep |
+|---|---|---|
+| udział kości w partii | 0,75 | **1,00** |
+| AP wydane na tipy | 48% | **63%** |
+| wykorzystanie puli AP | 94% | 94% |
+| tipy / turę | 0,88 | 1,19 |
+| ataki / turę | 0,77 | 1,09 |
+| długość partii | 22,6 | 15,2 |
+| % z wyczerpania | 3,3 | 9,2 |
+
+**Zdane.** Cała warbanda uczestniczy w partii zamiast trzech czwartych, a
+przezbrojenie zjada *większą* część rzadkiego zasobu niż wcześniej — bo AP
+przestało wyciekać na chodzenie. Pula jest wykorzystana w 94% w obu
+ekonomiach, więc AP nadal wiąże.
+
+Uwaga metodologiczna: pierwszy proxy („udział tipów w ruchach", 0,49 → 0,24)
+sugerował rozmycie rdzenia i **był mylący** — darmowe kroki dokładają się do
+mianownika, nie odbierając nic tipom. Rozstrzyga rachunek AP, nie rachunek
+ruchów.
+
+Wzrost wyczerpania (3,3% → 9,2%) to **znany, wcześniejszy tryb awarii**, nie
+nowy: partie kończone wyczerpaniem są w obu ekonomiach długie (49 i 27 tur),
+mają mało ataków (~0,48/turę) i dużo już poniesionych strat — to niedobitek
+uciekający do końca licznika. Darmowy ruch czyni pościg tańszym, więc zdarza
+się częściej. Lekarstwem jest **faza 3**: przy celach na planszy ucieczka
+przegrywa, bo przeciwnik punktuje. Dziś jedynym warunkiem zwycięstwa jest
+dowódca, więc uciekanie się opłaca.
+
 ---
 
 ## Faza 2 — skala (1 dzień)

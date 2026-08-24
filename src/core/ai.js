@@ -189,7 +189,11 @@ function scoreCandidates(game, myUnits, enemies) {
     // Only ever worth it if it lines up an attack we can still pay for this
     // turn. Without that condition the AI burns whole turns rotating for no
     // reason — which is exactly what it used to do.
-    if (game.canTurn(unit) && game.ap >= 2) {
+    // Cost of the turn itself plus the 1 AP for the blow it sets up. Under
+    // the 'freestep' economy the turn is free, so lining up an attack needs
+    // only the attack's own AP.
+    const turnCost = game.economy === 'freestep' ? 0 : 1;
+    if (game.canTurn(unit) && game.ap >= turnCost + 1) {
       for (const cw of [true, false]) {
         const facing = nextDir(unit.facing, cw);
         if (couldAttackFacing(game, unit, facing)) {
