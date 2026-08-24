@@ -1,7 +1,10 @@
+// Domyślny rozmiar. Plansza jest jednak własnością partii, nie modułu —
+// przebudowa na skirmish zmienia ją na mniejszą, a mierzyć trzeba kilka
+// rozmiarów w jednym procesie.
 export const BOARD_SIZE = 7;
 
-export function inBounds(x, z) {
-  return x >= 0 && x < BOARD_SIZE && z >= 0 && z < BOARD_SIZE;
+export function inBounds(x, z, size = BOARD_SIZE) {
+  return x >= 0 && x < size && z >= 0 && z < size;
 }
 
 export function unitAt(units, x, z) {

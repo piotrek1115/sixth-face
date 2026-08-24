@@ -1,15 +1,27 @@
 import './style.css';
 import { Raycaster, Vector2 } from 'three';
 import { Game } from './core/game.js';
-import { createSceneRig } from './render/scene.js';
+import { createSceneRig, fitCameraToBoard } from './render/scene.js';
 import { UnitView, makePlate, drawPlate } from './render/diceMesh.js';
-import { gridToWorld, makeHighlight, buildBoard, buildTerrainLayer, syncTerrain, DIE_HALF } from './render/board.js';
+import { gridToWorld, makeHighlight, buildBoard, buildTerrainLayer, syncTerrain, setBoardSize, DIE_HALF } from './render/board.js';
 import { RollAnimation, RollInPlaceAnimation, StepAnimation, TurnAnimation, HitAnimation, LungeAnimation } from './render/animator.js';
 import { createHud } from './ui/hud.js';
 import { FACE_RULES } from './ui/cheatsheet.js';
 import { DIRECTION_VECTORS, nextDir } from './core/orientation.js';
 import { TERRAIN, terrainAt } from './core/board.js';
 import { decideAiAction } from './core/ai.js';
+
+// Ekonomia, w ktorej gra aplikacja. Silnik domyslnie trzyma 'pool', bo na
+// niej stoi caly poprzedni pomiar; tutaj gramy w to, co budujemy dalej.
+let economy = 'freestep';
+// Skala ustalona w fazie 2: przy 6x6 i warbandzie 5 kosci na strone tura ma
+// ~4,6 akcji zamiast ~6,3, partia trwa ~13 tur zamiast 23, a dryf (jaka czesc
+// kostek w ogole zmienia kolumne) idzie z 0,36 na 0,64.
+let boardSize = 6;
+// MUSI byc przed createSceneRig(): scena buduje kafelki i ustawia kamere od
+// razu w konstruktorze, wiec ustawiony pozniej rozmiar dawal plansze 7x7 pod
+// gra 6x6 — i dokladnie tak sie to pierwszy raz zachowalo.
+setBoardSize(boardSize);
 
 const canvas = document.getElementById('scene');
 const { scene, camera, renderer, board: initialBoard } = createSceneRig(canvas);
@@ -30,10 +42,7 @@ function setTheme(next) {
   hud.setThemeLabel(theme);
 }
 
-// Ekonomia, w ktorej gra aplikacja. Silnik domyslnie trzyma 'pool', bo na
-// niej stoi caly poprzedni pomiar; tutaj gramy w to, co budujemy dalej.
-let economy = 'freestep';
-let game = new Game({ economy });
+let game = new Game({ economy, boardSize });
 window.__debug = { scene, camera, renderer, get game() { return game; } };
 
 // --- unit views -------------------------------------------------------
@@ -599,7 +608,12 @@ function autoPlayStep() {
 }
 
 function newGame(opts) {
-  game = new Game({ economy, ...opts });
+  game = new Game({ economy, boardSize, ...opts });
+  setBoardSize(game.boardSize);
+  fitCameraToBoard(camera, game.boardSize);
+  scene.remove(board);
+  board = buildBoard(theme);
+  scene.add(board);
   selectedUnit = null;
   deployChoice = null;
   activeAnimations.clear();

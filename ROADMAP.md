@@ -97,6 +97,37 @@ ile ruchu jest w bok zamiast do przodu.
 **Zrobione, gdy:** jest rozmiar, przy którym partie się rozstrzygają, a
 kości mają gdzie manewrować. Podejrzenie: 6×6 przy 4–5 kościach.
 
+### WYNIK (`tools/scale.mjs`, 4 rozmiary × 5 wielkości bandy × 40 map)
+
+Porównanie z wersją szachową, 120 map na wariant:
+
+| wariant | zajętość | tur | akcji/turę | dryf | ataków/turę | wyczerp. |
+|---|---|---|---|---|---|---|
+| v1-chess 7×7 8v8 pool | 0,33 | 22,6 | 2,6 | **0,36** | 0,77 | 3% |
+| 7×7 8v8 freestep | 0,33 | 15,2 | **6,3** | 0,56 | 1,09 | 9% |
+| **6×6 5v5 freestep** | 0,28 | 13,5 | 4,6 | **0,64** | 0,95 | 13% |
+| 6×6 4v4 freestep | 0,22 | 11,8 | 4,1 | 0,63 | 0,86 | 12% |
+
+**Wybrane: 6×6, warbanda 5 kości na stronę** (docelowo 4–6, bo punkty i tak
+zrobią z tego zakres). Dryf — ile kostek w ogóle zmienia kolumnę — idzie
+z 0,36 na 0,64, czyli o 78%. Partia skraca się z 23 do 13 tur.
+
+Kluczowe: **to zmniejszenie bandy, nie planszy, trzyma turę w ryzach.** Sam
+darmowy Krok rozdmuchał turę do 6,3 akcji (23 minuty przy tym samym tempie);
+przy pięciu kościach wraca do 4,6.
+
+Czego faza 2 NIE dała:
+- **rozmiar planszy prawie nie rusza dryfu** (0,57–0,75 w całym przemiataniu,
+  w granicach szumu). Skok zrobiła ekonomia z fazy 1, nie skala.
+- **teren przy 12% gęstości jest obojętny** — ten sam wynik co w wersji
+  szachowej. AI nadal nie umie go używać.
+
+Wyczerpanie (3% → 13%) zdiagnozowane: partie kończone wyczerpaniem są długie
+(25–27 tur wobec ~12 średnio), mają ~50% strat i ~0,45 ataku na turę — to
+pościg za niedobitkiem, nie stand-off. Sprawdziłem też hipotezę, że
+`stallLimit=12` przestał pasować do krótszych partii: **nieprawda**, między 8
+a 20 wynik się nie rusza. Zostaje faza 3.
+
 ---
 
 ## Faza 3 — cele (3–4 dni, największy kawałek kodu)

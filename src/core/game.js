@@ -34,8 +34,12 @@ const STALL_LIMIT = 12;
 
 export class Game {
   constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false, stallLimit = STALL_LIMIT,
-                economy = 'pool' } = {}) {
+                economy = 'pool', boardSize = BOARD_SIZE } = {}) {
     this.apPerTurn = apPerTurn;
+    // Plansza należy do partii. Standardowy roster zakłada 7x7 i sam się
+    // wyśrodkowuje, więc mniejsza plansza jest legalna tylko dla rozstawienia
+    // własnego — o co i tak chodzi w skirmishu.
+    this.boardSize = boardSize;
     // How actions are paid for:
     //   'pool'     — everything comes out of the shared AP pool (the original)
     //   'freestep' — every die gets ONE free Step-or-Turn per turn and AP buys
@@ -97,16 +101,21 @@ export class Game {
   // kept clear of contact to be worth anything, and the leader, who has no
   // business in the front line.
   _setupUnits() {
-    const back = BOARD_SIZE - 1;
+    const back = this.boardSize - 1;
+    // Warbanda, nie armia. Faza 2 zmierzyła, że przy 6x6 i pięciu kościach na
+    // stronę tura ma ~4,6 akcji zamiast ~6,3, partia trwa ~13 tur zamiast 23,
+    // a dryf (jaka część kostek w ogóle zmienia kolumnę) idzie z 0,36 na 0,64.
+    // Osiem kości na mniejszej planszy dałoby 44% zajętości — czyli dokładnie
+    // ten zator w centrum, od którego uciekamy.
     const line = {
-      humans: ['swordsman', 'shieldbearer', 'pikeman', 'shieldbearer', 'swordsman'],
-      orcs: ['orcBoy', 'mauler', 'brute', 'mauler', 'orcBoy'],
+      humans: ['swordsman', 'pikeman', 'shieldbearer'],
+      orcs: ['orcBoy', 'brute', 'mauler'],
     };
     const support = {
-      humans: ['archer', 'captain', 'archer'],
-      orcs: ['hurler', 'warboss', 'hurler'],
+      humans: ['archer', 'captain'],
+      orcs: ['hurler', 'warboss'],
     };
-    const centred = (n) => Math.floor((BOARD_SIZE - n) / 2);
+    const centred = (n) => Math.floor((this.boardSize - n) / 2);
 
     for (const [faction, rows] of [
       ['humans', { support: 0, line: 1, facing: 'S' }],
@@ -124,7 +133,7 @@ export class Game {
    *  their faction's advance direction, matching the standard line-up. */
   deployUnit(unitTypeId, faction, x, z) {
     if (this.phase !== 'deploy') return null;
-    if (!inBounds(x, z) || unitAt(this.units, x, z) || isWall(this.terrain, x, z)) return null;
+    if (!inBounds(x, z, this.boardSize) || unitAt(this.units, x, z) || isWall(this.terrain, x, z)) return null;
     const unit = new Unit(unitTypeId, faction, x, z, faction === 'humans' ? 'S' : 'N');
     this.units.push(unit);
     this._pushLog(`Placed ${unit.type.name} (${faction}) at ${x},${z}`);
@@ -213,7 +222,7 @@ export class Game {
   _destinationFree(unit, dir) {
     const nx = unit.x + DIRECTION_VECTORS[dir].x;
     const nz = unit.z + DIRECTION_VECTORS[dir].z;
-    return inBounds(nx, nz) && !unitAt(this.units, nx, nz) && !isWall(this.terrain, nx, nz);
+    return inBounds(nx, nz, this.boardSize) && !unitAt(this.units, nx, nz) && !isWall(this.terrain, nx, nz);
   }
 
   // STEP — cheap (1 AP), any direction, a pure slide: top face and facing
@@ -244,7 +253,7 @@ export class Game {
     for (let s = 1; s <= this._stepDistance(unit); s++) {
       const nx = unit.x + d.x * s;
       const nz = unit.z + d.z * s;
-      if (!inBounds(nx, nz) || unitAt(this.units, nx, nz)) return false;
+      if (!inBounds(nx, nz, this.boardSize) || unitAt(this.units, nx, nz)) return false;
       if (isWall(this.terrain, nx, nz)) return false;
     }
     return true;
@@ -420,7 +429,7 @@ export class Game {
     let best = null;
     let bestRank = -1;
     for (const { x, z } of this._fanTiles(unit)) {
-      if (!inBounds(x, z) || isWall(this.terrain, x, z)) continue;
+      if (!inBounds(x, z, this.boardSize) || isWall(this.terrain, x, z)) continue;
       const occupant = unitAt(this.units, x, z);
       if (!occupant || occupant.faction === unit.faction) continue;
       // Prefer the blow that accomplishes most: a kill over a wound, a wound
@@ -471,7 +480,7 @@ export class Game {
     for (let step = 1; step <= range; step++) {
       const x = unit.x + d.x * step;
       const z = unit.z + d.z * step;
-      if (!inBounds(x, z)) return null;
+      if (!inBounds(x, z, this.boardSize)) return null;
       if (isWall(this.terrain, x, z)) return null; // a blow does not travel through stone
       const occupant = unitAt(this.units, x, z);
       if (!occupant) continue;
@@ -614,7 +623,7 @@ export class Game {
     if (wantsPush) {
       const bx = target.x + DIRECTION_VECTORS[attackDir].x;
       const bz = target.z + DIRECTION_VECTORS[attackDir].z;
-      push = inBounds(bx, bz) && !unitAt(this.units, bx, bz);
+      push = inBounds(bx, bz, this.boardSize) && !unitAt(this.units, bx, bz);
     }
 
     const vacatedX = target.x;

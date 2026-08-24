@@ -7,7 +7,24 @@ export const TILE = 1.6;
 // exact. So the animation pivot math always uses TILE/2, independent of
 // whatever visual margin the rendered die geometry uses (see diceMesh.js).
 export const DIE_HALF = TILE / 2;
-const HALF = ((BOARD_SIZE - 1) * TILE) / 2;
+// Rozmiar planszy, którą renderer aktualnie pokazuje. Rdzeń trzyma go w
+// partii (game.boardSize) i to jest jedyne miejsce prawdy; tutaj mamy kopię,
+// bo widok jest z natury pojedynczy — jedna scena, jedna plansza — a
+// przewlekanie rozmiaru przez każde gridToWorld() w main.js zamieniłoby
+// wszystkie wywołania w szum. Ustawiane raz na rozdanie, przez setBoardSize().
+let boardSize = BOARD_SIZE;
+let HALF = ((boardSize - 1) * TILE) / 2;
+
+/** Powiedz rendererowi, jak duża jest plansza tej partii. Wywoływać PRZED
+ *  buildBoard()/gridToWorld(), czyli przy każdym nowym rozdaniu. */
+export function setBoardSize(n) {
+  boardSize = n;
+  HALF = ((boardSize - 1) * TILE) / 2;
+}
+
+export function getBoardSize() {
+  return boardSize;
+}
 
 /** Grid (x,z) -> world (x,z). Board center sits at world origin. */
 export function gridToWorld(x, z) {
@@ -91,7 +108,7 @@ export function buildBoard(theme = 'dark') {
   const colors = BOARD_THEMES[theme] ?? BOARD_THEMES.dark;
   const group = new Group();
 
-  const size = BOARD_SIZE * TILE;
+  const size = boardSize * TILE;
   const base = new Mesh(
     new PlaneGeometry(size, size),
     new MeshStandardMaterial({ color: colors.base, roughness: 0.95 })
@@ -101,8 +118,8 @@ export function buildBoard(theme = 'dark') {
   group.add(base);
 
   // Checker tint so tiles/rows read clearly from the tactical camera angle.
-  for (let x = 0; x < BOARD_SIZE; x++) {
-    for (let z = 0; z < BOARD_SIZE; z++) {
+  for (let x = 0; x < boardSize; x++) {
+    for (let z = 0; z < boardSize; z++) {
       const { x: wx, z: wz } = gridToWorld(x, z);
       const tint = (x + z) % 2 === 0 ? colors.tileA : colors.tileB;
       const tile = new Mesh(
@@ -119,7 +136,7 @@ export function buildBoard(theme = 'dark') {
     }
   }
 
-  const grid = new GridHelper(size, BOARD_SIZE, colors.gridMain, colors.gridSub);
+  const grid = new GridHelper(size, boardSize, colors.gridMain, colors.gridSub);
   grid.position.y = 0.01;
   group.add(grid);
 

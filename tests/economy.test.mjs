@@ -11,26 +11,31 @@ import { Game } from '../src/core/game.js';
 
 const find = (g, id) => g.units.find((u) => u.unitTypeId === id);
 const freeGame = (opts = {}) => new Game({ economy: 'freestep', ...opts });
+// Kierunek dobierany, nie wpisany: kości stoją w szyku i zasłaniają się
+// nawzajem, więc test przywiązany do konkretnej strony świata psuje się przy
+// każdej zmianie rosteru — i psuł się.
+const openDir = (g, u) => ['N', 'E', 'W', 'S'].find((d) => g.canStep(u, d));
 
 test('a die still walks with an empty AP pool', () => {
   const g = freeGame();
   const u = find(g, 'swordsman');
   g.ap = 0;
-  assert.equal(g.canStep(u, 'N'), true, 'the free step does not come out of the pool');
-  assert.equal(g.step(u, 'N'), true);
+  const dir = openDir(g, u);
+  assert.ok(dir, 'the free step does not come out of the pool');
+  assert.equal(g.step(u, dir), true);
   assert.equal(g.ap, 0, 'and it costs nothing');
 });
 
 test('the free action is one per die per turn — Step or Turn, not both', () => {
   const g = freeGame();
   const a = find(g, 'swordsman');
-  g.step(a, 'N');
-  assert.equal(g.canStep(a, 'N'), false, 'no second step');
+  g.step(a, openDir(g, a));
+  assert.equal(openDir(g, a), undefined, 'no second step in any direction');
   assert.equal(g.canTurn(a), false, 'and no turn either — it was one action, not two');
 
   const b = find(g, 'archer');
   g.turn(b, true);
-  assert.equal(g.canStep(b, 'N'), false, 'spending it on a turn spends it just the same');
+  assert.equal(openDir(g, b), undefined, 'spending it on a turn spends it just the same');
 });
 
 test('every die on the side gets its own free action', () => {
@@ -74,6 +79,6 @@ test("the pool economy is untouched — a step still costs 1 AP", () => {
   const g = new Game(); // default: 'pool'
   const u = find(g, 'swordsman');
   assert.equal(g.hasFreeAction(u), false, 'nothing is free under the pool');
-  g.step(u, 'N');
+  g.step(u, ['N', 'E', 'W', 'S'].find((d) => g.canStep(u, d)));
   assert.equal(g.ap, 2);
 });

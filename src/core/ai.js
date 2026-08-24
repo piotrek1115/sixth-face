@@ -27,7 +27,7 @@ import { BOARD_SIZE, inBounds, isWall } from './board.js';
  *  Other units are treated as passable: they move, so routing around a body
  *  that will not be there next turn is not worth the detour. Only stone is
  *  permanent. */
-function distanceField(enemies, terrain) {
+function distanceField(enemies, terrain, size = BOARD_SIZE) {
   const dist = new Map();
   const queue = [];
   for (const e of enemies) {
@@ -45,14 +45,14 @@ function distanceField(enemies, terrain) {
       const nx = x + dx;
       const nz = z + dz;
       const key = `${nx},${nz}`;
-      if (!inBounds(nx, nz) || dist.has(key) || isWall(terrain, nx, nz)) continue;
+      if (!inBounds(nx, nz, size) || dist.has(key) || isWall(terrain, nx, nz)) continue;
       dist.set(key, d + 1);
       queue.push([nx, nz]);
     }
   }
   // Walled off entirely: treat as very far rather than infinite, so scores
   // stay finite and comparable.
-  return (x, z) => dist.get(`${x},${z}`) ?? BOARD_SIZE * 2;
+  return (x, z) => dist.get(`${x},${z}`) ?? size * 2;
 }
 
 /** Would tipping toward `dir` leave this unit actually able to strike?
@@ -164,7 +164,7 @@ function isImmediateReversal(unit, type, dir) {
 function scoreCandidates(game, myUnits, enemies) {
   const out = [];
   // One flood fill per decision, shared by every candidate move.
-  const distanceTo = distanceField(enemies, game.terrain);
+  const distanceTo = distanceField(enemies, game.terrain, game.boardSize);
   // A leader may only play it safe while someone else can still do the
   // fighting; once the healthy rank and file are gone it has to commit.
   const leaderMayHide = myUnits.some((u) => !u.type.isLeader && !u.isWounded);

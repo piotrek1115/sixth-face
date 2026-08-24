@@ -9,8 +9,17 @@ import {
   PCFSoftShadowMap,
   Vector3,
 } from 'three';
-import { buildBoard, TILE } from './board.js';
-import { BOARD_SIZE } from '../core/board.js';
+import { buildBoard, getBoardSize, TILE } from './board.js';
+
+/** Kadr wyliczony z rzeczywistego zasięgu planszy, nie wpisany na sztywno:
+ *  ustawienie było strojone na 6x6 (wysokość 18, odsunięcie 6) i powiększenie
+ *  planszy po cichu wypychało tylne rzędy poza kadr. Eksportowane, bo plansza
+ *  zmienia teraz rozmiar w trakcie sesji. */
+export function fitCameraToBoard(camera, size = getBoardSize()) {
+  const span = size * TILE;
+  camera.position.set(0, span * 1.875, span * 0.625);
+  camera.lookAt(new Vector3(0, 0, 0));
+}
 
 export function createSceneRig(canvas) {
   const scene = new Scene();
@@ -24,9 +33,7 @@ export function createSceneRig(canvas) {
   // framing was tuned on a 6x6 grid and enlarging the board silently pushed
   // the home rows out of shot. The ratios below reproduce the tuned 6x6 view
   // (height 18, offset 6) and now follow whatever BOARD_SIZE is.
-  const span = BOARD_SIZE * TILE;
-  camera.position.set(0, span * 1.875, span * 0.625);
-  camera.lookAt(new Vector3(0, 0, 0));
+  fitCameraToBoard(camera);
 
   // alpha:true so empty space (scene.background stays null) shows the page's
   // CSS background through the canvas — otherwise WebGL clears to opaque
