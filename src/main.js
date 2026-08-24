@@ -30,7 +30,10 @@ function setTheme(next) {
   hud.setThemeLabel(theme);
 }
 
-let game = new Game();
+// Ekonomia, w ktorej gra aplikacja. Silnik domyslnie trzyma 'pool', bo na
+// niej stoi caly poprzedni pomiar; tutaj gramy w to, co budujemy dalej.
+let economy = 'freestep';
+let game = new Game({ economy });
 window.__debug = { scene, camera, renderer, get game() { return game; } };
 
 // --- unit views -------------------------------------------------------
@@ -170,7 +173,9 @@ function tooltipLabelNow() {
     const to = nextDir(selectedUnit.facing, hoveredCorner.cw);
     return {
       title: hoveredCorner.cw ? 'Turn clockwise' : 'Turn anticlockwise',
-      body: `Front swings ${selectedUnit.facing} → ${to}. 1 AP, the top face does not change.`,
+      body: `Front swings ${selectedUnit.facing} → ${to}. ${
+        game.economy === 'freestep' ? "Costs this die's free action" : '1 AP'
+      }, the top face does not change.`,
     };
   }
   if (hoverKind === 'edge' && hoveredEdge) return faceTip(hoveredEdge.unit.topAfterTurning(hoveredEdge.dir));
@@ -507,6 +512,12 @@ const hud = createHud(document.getElementById('hud'), {
   onToggleTheme: () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   },
+  // Ekonomii nie da sie przelaczyc w trakcie partii bez klamstwa o tym, co
+  // juz wydano — wiec przelacznik rozdaje od nowa i mowi o tym wprost.
+  onToggleEconomy: () => {
+    economy = economy === 'freestep' ? 'pool' : 'freestep';
+    newGame(game.phase === 'deploy' ? { deploy: true } : undefined);
+  },
   onToggleAutoPlay: () => {
     autoPlayEnabled = !autoPlayEnabled;
     hud.setAutoPlayLabel(autoPlayEnabled);
@@ -531,6 +542,12 @@ function afterAction() {
 // human one (same animations, same AP costs, same automatic elimination).
 let autoPlayEnabled = false;
 const AI_ACTION_DELAY_MS = 550;
+// Pod 'freestep' tura ma ~11 akcji zamiast ~3, bo cała warbanda idzie za
+// darmo. Przy jednym tempie dla wszystkiego oglądanie tury trwa cztery razy
+// dłużej, a darmowy krok jest najmniej interesującą z tych akcji — więc
+// przelatuje szybciej, a tipy i ciosy zachowują swoją wagę.
+const AI_FREE_MOVE_DELAY_MS = 180;
+let lastAiActionWasFree = false;
 
 function autoPlayStep() {
   if (!autoPlayEnabled) return;
@@ -545,6 +562,10 @@ function autoPlayStep() {
   }
 
   const decision = decideAiAction(game);
+  // Czy to była akcja opłacona darmową akcją kości, czy z puli AP — decyduje
+  // o tempie odtwarzania, patrz AI_FREE_MOVE_DELAY_MS.
+  lastAiActionWasFree =
+    game.economy === 'freestep' && (decision?.type === 'step' || decision?.type === 'turn');
   if (decision) {
     selectedUnit = decision.unit; // so the HUD/debug panel narrate what's happening
     let ok = false;
@@ -574,11 +595,11 @@ function autoPlayStep() {
     afterAction();
   }
 
-  setTimeout(autoPlayStep, AI_ACTION_DELAY_MS);
+  setTimeout(autoPlayStep, lastAiActionWasFree ? AI_FREE_MOVE_DELAY_MS : AI_ACTION_DELAY_MS);
 }
 
 function newGame(opts) {
-  game = new Game(opts);
+  game = new Game({ economy, ...opts });
   selectedUnit = null;
   deployChoice = null;
   activeAnimations.clear();

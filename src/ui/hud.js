@@ -14,6 +14,7 @@ export function createHud(root, actions) {
       <button id="autoPlayBtn">▶ Auto-Play</button>
       <button id="themeBtn">☀ Light</button>
       <button id="modeBtn">✥ Custom setup</button>
+      <button id="ecoBtn">⚡ Economy</button>
       <button id="cheatBtn">? Rules</button>
       <a class="docsLink" href="./handoff/" target="_blank" rel="noopener">O co chodzi ↗</a>
       <div class="faction-badge orcs" id="badge-orcs">Orcs</div>
@@ -23,16 +24,21 @@ export function createHud(root, actions) {
     <div class="deployPanel" id="deployPanel" hidden></div>
     <div class="cheatSheet" id="cheatSheet" hidden></div>
     <div class="log" id="log"></div>
-    <div class="hint" id="hint"><b>Point at any die</b> — even an enemy's — and four purple tabs appear on its edges, each naming the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> on your own die to tip it (stays put; costs 1–3 AP — light dice tip cheaply, heavy ones cost a whole turn); the gold <b>corner arrows</b> turn it to face that way (1 AP).<br>Cyan tiles: click to <b>Step</b> (1 AP), double-click to <b>Roll</b> — the tile spells out which one you can afford. Hover anything and hold still for a second to see what it does.</div>
+    <div class="hint" id="hint"><b>Point at any die</b> — even an enemy's — and four purple tabs appear on its edges, each naming the face a <b>tip</b> that way would turn up. <b>Double-click a tab</b> on your own die to tip it (stays put; costs 1–3 AP — light dice tip cheaply, heavy ones cost a whole turn); the gold <b>corner arrows</b> turn it to face that way.<br>Cyan tiles: click to <b>Step</b>, double-click to <b>Roll</b> — the tile spells out which one you can afford. Under <b>⚡ Free step</b> every die walks or turns once a turn for nothing, and AP buys only tips and attacks. Hover anything and hold still for a second to see what it does.</div>
   `;
 
   root.querySelector('#endTurnBtn').addEventListener('click', () => actions.onEndTurn());
   root.querySelector('#autoPlayBtn').addEventListener('click', () => actions.onToggleAutoPlay());
   root.querySelector('#themeBtn').addEventListener('click', () => actions.onToggleTheme());
+  // Ostatnia gra przekazana do update() — arkusz zasad musi opisywać TĘ
+  // partię, a nie tę, która akurat trwała przy pierwszym otwarciu.
+  let latestGame = null;
   root.querySelector('#cheatBtn').addEventListener('click', () => {
     const sheet = root.querySelector('#cheatSheet');
     sheet.hidden = !sheet.hidden;
-    if (!sheet.innerHTML) sheet.innerHTML = renderCheatSheet();
+    // Przebudowa przy każdym otwarciu, nie tylko przy pierwszym: przełącznik
+    // ekonomii zmienia połowę treści.
+    if (!sheet.hidden) sheet.innerHTML = renderCheatSheet(latestGame);
   });
 
   return {
@@ -68,6 +74,14 @@ export function createHud(root, actions) {
       root.querySelector('#modeBtn').textContent = deploying ? '↺ Standard game' : '✥ Custom setup';
       root.querySelector('#modeBtn').onclick = () =>
         deploying ? actions.onNewStandardGame() : actions.onNewCustomGame();
+      latestGame = game;
+      const free = game.economy === 'freestep';
+      const ecoBtn = root.querySelector('#ecoBtn');
+      ecoBtn.textContent = free ? '⚡ Free step' : '⛓ AP pool';
+      ecoBtn.title = free
+        ? 'Każda kość ma jedną darmową akcję na turę (Krok albo Obrót); AP kupuje tylko tipy i ataki. Kliknij, żeby wrócić do wspólnej puli.'
+        : 'Wszystko idzie ze wspólnej puli AP. Kliknij, żeby włączyć darmowy Krok.';
+      ecoBtn.onclick = () => actions.onToggleEconomy();
       renderDeployPanel(root.querySelector('#deployPanel'), game, actions, deployChoice);
       renderUnitPanel(root.querySelector('#unitPanel'), game, selectedUnit, actions);
       renderDebugPanel(root.querySelector('#debugPanel'), selectedUnit, selectedView);
@@ -147,7 +161,9 @@ function renderUnitPanel(el, game, unit, actions) {
     el.innerHTML = `<h3>Unit</h3><div class="empty">Click a unit to select it</div>`;
     return;
   }
-  const canAct = game.canAct(unit);
+  // Pod 'freestep' Krok i Obrót są legalne także przy pustej puli, więc
+  // przyciski ruchu nie mogą wisieć na canAct (które wymaga ap > 0).
+  const canAct = game.canAct(unit) || (game.hasFreeAction(unit) && game._canActBase(unit));
   const topLabel = unit.topLabel;
   const isAttack = ATTACK_LABELS.has(topLabel);
   const canAttackNow = game.canAttack(unit);
@@ -158,14 +174,15 @@ function renderUnitPanel(el, game, unit, actions) {
     <div class="faceRow top ${isAttack ? 'attackable' : ''}"><span class="k">TOP (active)</span><span class="v">${topLabel}</span></div>
     <div class="faceRow"><span class="k">Facing</span><span class="v">${unit.facing} · front: ${unit.frontLabel}</span></div>
     <div class="faceRow"><span class="k">AP left</span><span class="v">${unit.alive ? game.ap : '—'}</span></div>
+    ${freeRow(game, unit)}
     <div class="actions">
-      <div class="actionGroupLabel">Step · 1 AP · keeps top face</div>
+      <div class="actionGroupLabel">Step · ${moveCostLabel(game)} · keeps top face</div>
       ${['N', 'E', 'S', 'W'].map((dir) => stepButton(game, unit, dir, canAct)).join('')}
       <div class="actionGroupLabel">Roll · ${game._rollCost(unit)} AP · changes top face, moves a tile${
         unit.type.rollCost === 1 ? ' · LIGHT' : unit.type.rollCost > 2 ? ' · HEAVY' : ''
       }</div>
       ${['N', 'E', 'S', 'W'].map((dir) => rollButton(game, unit, dir, canAct)).join('')}
-      <div class="actionGroupLabel">Face · 1 AP · click a corner of the die</div>
+      <div class="actionGroupLabel">Face · ${moveCostLabel(game)} · click a corner of the die</div>
       <button data-act="attack" class="attack ${preview?.lethal || preview?.wounds ? 'lethal' : ''}" ${!canAttackNow ? 'disabled' : ''}>Attack (${topLabel})</button>
     </div>
     ${renderAttackPreview(preview)}
@@ -180,6 +197,22 @@ function renderUnitPanel(el, game, unit, actions) {
       if (act === 'attack') actions.onAttack(unit);
     });
   });
+}
+
+/** Under 'freestep' a Step or a Turn costs nothing — it spends the die's one
+ *  free action instead, which is a different currency and has to read as one. */
+function moveCostLabel(game) {
+  return game.economy === 'freestep' ? 'free action' : '1 AP';
+}
+
+/** Whether THIS die still holds its free action. Without it the player cannot
+ *  tell why a die that looks idle refuses to move. */
+function freeRow(game, unit) {
+  if (game.economy !== 'freestep') return '';
+  const left = game.hasFreeAction(unit);
+  return `<div class="faceRow"><span class="k">Free action</span><span class="v">${
+    left ? 'available — Step or Turn' : 'spent this turn'
+  }</span></div>`;
 }
 
 /** Spells out what the pending attack would actually do. Without this the
