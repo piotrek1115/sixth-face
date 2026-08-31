@@ -71,3 +71,20 @@ Cały łańcuch przeszedł test na żywo: wrzucona tarcza jako `humans/guard.png
 pojawiła się na górnej ścianie Miecznika (próbka piksela `rgb(232,226,208)` =
 dokładnie kolor z pliku), Strike bez pliku został na starej grafice frakcji,
 a orkowy Guard nie drgnął.
+
+---
+
+## Źródła
+
+`art/source/<frakcja>/` — pliki tak, jak przyszły od rysownika (łącznie
+z PSD i `BASE`, czyli pustym stemplem bez napisu). To NIE są pliki, których
+używa gra: gra czyta `public/art/faces/<frakcja>/<zdolność>.jpg`.
+
+Przeniesienie źródeł do gry:
+
+```bash
+node tools/install-art.mjs orcs
+```
+
+Skrypt normalizuje nazwy (`Orc_Guard.jpg` → `guard.jpg`), konwertuje PSD-y do
+JPEG-a przez `sips` i wypisuje, których ścian jeszcze brakuje.
