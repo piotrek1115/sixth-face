@@ -1,6 +1,7 @@
 import { BOARD_SIZE, inBounds, unitAt, isWall, isMud } from './board.js';
 import { DIRECTION_VECTORS, oppositeDir } from './orientation.js';
 import { Unit } from './unit.js';
+import { SCENARIOS, DEFAULT_SCENARIO } from './scenarios.js';
 import {
   ATTACK_LABELS,
   PUSH_LABELS,
@@ -34,12 +35,22 @@ const STALL_LIMIT = 12;
 
 export class Game {
   constructor({ apPerTurn = AP_PER_TURN, rallyMode = 'command', deploy = false, stallLimit = STALL_LIMIT,
-                economy = 'pool', boardSize = BOARD_SIZE } = {}) {
+                economy = 'pool', boardSize = BOARD_SIZE, scenario = DEFAULT_SCENARIO,
+                scoreTarget } = {}) {
     this.apPerTurn = apPerTurn;
     // Plansza należy do partii. Standardowy roster zakłada 7x7 i sam się
     // wyśrodkowuje, więc mniejsza plansza jest legalna tylko dla rozstawienia
     // własnego — o co i tak chodzi w skirmishu.
     this.boardSize = boardSize;
+    // Po co scenariusze: dopoki jedynym warunkiem zwyciestwa byl dowodca,
+    // obie armie musialy sie zejsc w jednym miejscu, a niedobitek mogl
+    // uciekac za darmo. Cel na planszy daje powod, zeby BYC GDZIES.
+    this.scenario = scenario;
+    // Prog punktowy jest strojony pomiarem, wiec musi dac sie nadpisac.
+    this.scoreTarget = scoreTarget ?? SCENARIOS[scenario].scoreTarget;
+    this.score = { humans: 0, orcs: 0 };
+    this.objectives = []; // pola punktowane (kapliczki)
+    this.relics = [];     // neutralne kostki do wyniesienia
     // How actions are paid for:
     //   'pool'     — everything comes out of the shared AP pool (the original)
     //   'freestep' — every die gets ONE free Step-or-Turn per turn and AP buys
@@ -80,6 +91,10 @@ export class Game {
     // battle to end: a wounded die simply runs, and a pursuer of equal speed
     // can never catch it — observed as a chase lasting eleven thousand turns.
     this.stallLimit = stallLimit;
+    // Licznik „nic sie nie dzieje". Liczyl wylacznie ciosy, co przy celach
+    // bylo bledem kategorii: partia, w ktorej ktos co ture zdobywa punkt,
+    // POSTEPUJE — tyle ze bezkrwawo. Zdobycie punktu zeruje go tak samo jak
+    // trafienie.
     this.turnsSinceBlood = 0;
     this.log = [];
     this._woundedActed = new Set(); // unit ids that used their one wounded action this turn
@@ -87,8 +102,10 @@ export class Game {
     this._leaderIsCommanding = false;
     if (!deploy) {
       this._setupUnits();
+      SCENARIOS[scenario].setup(this);
       this._pushLog(`— Turn 1: HUMANS —`);
     } else {
+      SCENARIOS[scenario].setup(this);
       this._pushLog('— Custom setup: place your dice, then start the battle —');
     }
   }
@@ -265,6 +282,7 @@ export class Game {
     const distance = this._stepDistance(unit);
     for (let s = 0; s < distance; s++) unit.applyStep(dir);
     this._payMoveOrTurn(unit, STEP_COST);
+    this._syncRelics(unit);
     this._pushLog(
       `${unit.type.name} steps ${dir}${distance > 1 ? ` x${distance} (Advance)` : ''} → top unchanged: ${unit.topLabel}`
     );
@@ -321,6 +339,9 @@ export class Game {
     // movement, which is the one kind of terrain a die can express and a
     // figure cannot.
     if (this._mudBlocksTip(unit, dir)) return false;
+    // Niosąc relikwię masz zajęte ręce. To jest błoto, które nosisz ze sobą:
+    // kurier jedzie na tej ścianie, którą miał w chwili podniesienia.
+    if (this.isCarrying(unit)) return false;
     // Only the single destination tile has to be clear. A roll always covers
     // exactly one tile — the wound-skip adds a quarter-turn to the die, not a
     // tile to the journey.
@@ -332,6 +353,7 @@ export class Game {
     const cost = this._rollCost(unit);
     const turns = unit.applyMove(dir);
     this.ap -= cost;
+    this._syncRelics(unit);
     this._pushLog(
       `${unit.type.name} rolls ${dir}${turns > 1 ? ' (turns twice past the wound)' : ''}` +
         `${cost < ROLL_COST ? ' (Rush)' : ''} → top: ${unit.topLabel}`
@@ -357,6 +379,7 @@ export class Game {
 
   canRollInPlace(unit) {
     if (this._mudBlocksTip(unit)) return false;
+    if (this.isCarrying(unit)) return false;
     return this.canAct(unit) && this.ap >= this._rollCost(unit) && !unit.isWounded;
   }
 
@@ -567,15 +590,7 @@ export class Game {
 
       const died = pushedUnit.applyHit(u.facing);
       this._pushLog(`${u.type.name} braces and strikes ${pushedUnit.type.name} → top: ${pushedUnit.topLabel}`);
-      if (died) {
-        this._pushLog(`${pushedUnit.type.name} is eliminated!`);
-        if (pushedUnit.type.isLeader) {
-          this.gameOver = true;
-          this.endReason = 'leader';
-          this.winner = u.faction;
-          this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
-        }
-      }
+      if (died) this._onUnitKilled(pushedUnit, u.faction);
     }
   }
 
@@ -639,7 +654,10 @@ export class Game {
     if (push && this._isAdjacent(unit, { x: vacatedX, z: vacatedZ })) {
       unit.x = vacatedX;
       unit.z = vacatedZ;
+      this._syncRelics(unit);
     }
+    // Zepchnięty też się przesunął — mógł upuścić relikwię albo na nią wejść.
+    if (push) this._syncRelics(target);
 
     // Loosing spends the shot: the die tips off its missile face, so a
     // shooter runs on a rhythm of load, loose, load. Without this the bow
@@ -660,27 +678,13 @@ export class Game {
     );
 
     if (died) {
-      this._pushLog(`${target.type.name} is eliminated!`);
-      if (target.type.isLeader) {
-        this.gameOver = true;
-        this.endReason = 'leader';
-        this.winner = unit.faction;
-        this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
-      }
+      this._onUnitKilled(target, unit.faction);
     } else {
       // Riposte: the defender survived while showing Riposte — free counter.
       if (wasRiposte) {
         const counterDied = unit.applyHit(oppositeDir(attackDir));
         this._pushLog(`${target.type.name} riposts! ${unit.type.name} top: ${unit.topLabel}`);
-        if (counterDied) {
-          this._pushLog(`${unit.type.name} is eliminated!`);
-          if (unit.type.isLeader) {
-            this.gameOver = true;
-            this.endReason = 'leader';
-            this.winner = target.faction;
-            this._pushLog(`${this.winner.toUpperCase()} WIN — enemy leader defeated!`);
-          }
-        }
+        if (counterDied) this._onUnitKilled(unit, target.faction);
       }
       // Brace: anyone actually pushed onto a Brace unit's front gets hit again.
       if (push && !this.gameOver) this._triggerBraceReactions(target);
@@ -692,6 +696,12 @@ export class Game {
 
   endTurn() {
     if (this.gameOver) return;
+    // Punktujesz za to, co trzymasz, KONCZAC swoja ture — nie zaczynajac ja.
+    // Inaczej pole zajete i natychmiast stracone platiloby tak samo jak
+    // utrzymane przez cala ture przeciwnika.
+    this._scoreEndOfTurn(this.currentFaction);
+    if (this.gameOver) return;
+
     this._woundedActed.clear();
     this._freeUsed.clear();
     this.currentFaction = this.currentFaction === 'humans' ? 'orcs' : 'humans';
@@ -713,6 +723,32 @@ export class Game {
     if (this.turnsSinceBlood >= this.stallLimit) this._endByExhaustion();
   }
 
+  /** Jedno miejsce, w ktorym kostka schodzi z planszy. Bylo skopiowane w
+   *  trzech (cios, Brace, Riposte) i kazdy nowy warunek zwyciestwa trzeba
+   *  bylo dopisywac trzy razy. */
+  _onUnitKilled(victim, killerFaction) {
+    this._pushLog(`${victim.type.name} is eliminated!`);
+    this._dropRelicHeldBy(victim);
+    if (this.gameOver) return;
+
+    // Dowodca konczy partie tylko w scenariuszu 'leader'. W scenariuszach z
+    // celami warbanda nie musi go miec, a przy pieciu kosciach smierc jednej
+    // z nich nie moze konczyc gry, zanim cokolwiek sie wydarzy.
+    if (this.scenario === 'leader' && victim.type.isLeader) {
+      return this._endGame(killerFaction, 'leader', 'enemy leader defeated!');
+    }
+    if (!this.aliveUnits(victim.faction).length) {
+      this._endGame(killerFaction, 'wipeout', 'enemy warband destroyed!');
+    }
+  }
+
+  _endGame(winner, reason, why) {
+    this.gameOver = true;
+    this.endReason = reason;
+    this.winner = winner;
+    this._pushLog(winner ? `${winner.toUpperCase()} WIN — ${why}` : `DRAW — ${why}`);
+  }
+
   /** How much fight a side has left. A wounded die is one blow from gone, so
    *  it counts half — which is what makes running away with a wounded unit a
    *  losing plan rather than a winning one. */
@@ -721,18 +757,86 @@ export class Game {
     return alive.length * 2 - alive.filter((u) => u.isWounded).length;
   }
 
-  /** Nobody has landed a blow for `stallLimit` turns: the battle is called on
-   *  the state of the two armies. */
+  // ---- relikwia -----------------------------------------------------------
+  // Niosąc masz zajęte ręce: kostka nie może się przekręcić. To jest reguła
+  // błota użyta jako cel — tragarz jest zamrożony na tej ścianie, którą miał
+  // w chwili podniesienia, więc kuriera wybierasz zawczasu.
+
+  relicCarriedBy(unit) {
+    return this.relics.find((r) => r.carrier === unit.id) ?? null;
+  }
+
+  isCarrying(unit) {
+    return !!this.relicCarriedBy(unit);
+  }
+
+  homeRowOf(faction) {
+    return faction === 'humans' ? 0 : this.boardSize - 1;
+  }
+
+  _dropRelicHeldBy(unit) {
+    const relic = this.relicCarriedBy(unit);
+    if (!relic) return;
+    relic.carrier = null;
+    relic.x = unit.x;
+    relic.z = unit.z;
+    this._pushLog(`${unit.type.name} drops the relic at ${relic.x},${relic.z}`);
+  }
+
+  /** Wywoływane po każdym ruchu kostki: podnieś, na czym stoisz, i oddaj, jeśli
+   *  właśnie doszedłeś do siebie. Ranna kostka nie niesie — ledwo się wlecze. */
+  _syncRelics(unit) {
+    if (!this.relics.length) return;
+    if (unit.isWounded) this._dropRelicHeldBy(unit);
+
+    const carried = this.relicCarriedBy(unit);
+    if (carried) {
+      carried.x = unit.x;
+      carried.z = unit.z;
+      return;
+    }
+    if (unit.isWounded) return;
+    const here = this.relics.find((r) => !r.carrier && r.x === unit.x && r.z === unit.z);
+    if (here) {
+      here.carrier = unit.id;
+      this._pushLog(`${unit.type.name} picks up the relic — its hands are full now (no tipping)`);
+    }
+  }
+
+  _scoreEndOfTurn(faction) {
+    const gained = SCENARIOS[this.scenario].scoreTurn(this, faction);
+    if (!gained) return;
+    this.score[faction] += gained;
+    this.turnsSinceBlood = 0;
+    this._pushLog(`${faction.toUpperCase()} hold ${gained} → score ${this.score.humans}:${this.score.orcs}`);
+    this._checkScoreVictory();
+  }
+
+  _checkScoreVictory() {
+    if (this.gameOver || this.scoreTarget == null) return;
+    for (const f of ['humans', 'orcs']) {
+      if (this.score[f] >= this.scoreTarget) {
+        this._endGame(f, 'score', `objective secured (${this.score.humans}:${this.score.orcs})`);
+        return;
+      }
+    }
+  }
+
+  /** Nobody has landed a blow for `stallLimit` turns: the battle is called.
+   *  Punkty ida PRZED sila, bo inaczej stanie na celu i przeczekanie byloby
+   *  gorsze niz siedzenie w domu z cala warbanda. */
   _endByExhaustion() {
     const h = this.armyStrength('humans');
     const o = this.armyStrength('orcs');
-    this.gameOver = true;
-    this.endReason = 'exhaustion';
-    this.winner = h === o ? null : h > o ? 'humans' : 'orcs';
+    const bySc = this.scoreTarget != null && this.score.humans !== this.score.orcs;
+    const winner = bySc
+      ? (this.score.humans > this.score.orcs ? 'humans' : 'orcs')
+      : (h === o ? null : h > o ? 'humans' : 'orcs');
     this._pushLog(
-      `— No blow landed for ${this.stallLimit} turns — battle called (humans ${h} : ${o} orcs) —`
+      `— No blow landed for ${this.stallLimit} turns — battle called ` +
+      `(score ${this.score.humans}:${this.score.orcs}, strength ${h}:${o}) —`
     );
-    this._pushLog(this.winner ? `${this.winner.toUpperCase()} WIN on strength` : 'DRAW — both armies spent');
+    this._endGame(winner, 'exhaustion', winner ? `called on ${bySc ? 'score' : 'strength'}` : 'both warbands spent');
   }
 
   /** Is anyone on this side still holding an unspent free Step-or-Turn they

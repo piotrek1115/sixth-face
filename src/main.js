@@ -18,6 +18,11 @@ let economy = 'freestep';
 // ~4,6 akcji zamiast ~6,3, partia trwa ~13 tur zamiast 23, a dryf (jaka czesc
 // kostek w ogole zmienia kolumne) idzie z 0,36 na 0,64.
 let boardSize = 6;
+// Scenariusz: 'shrines' wygral pomiar w fazie 3 — 50/48 miedzy wygrana na
+// punkty a wybiciem warbandy, 52:48 miedzy stronami, 3% wyczerpania i dryf
+// 0,81 wobec 0,64 przy samym dowodcy. 'relic' zostaje jako niezbalansowany
+// eksperyment (patrz scenarios.js), 'leader' jako stara wersja.
+let scenario = 'shrines';
 // MUSI byc przed createSceneRig(): scena buduje kafelki i ustawia kamere od
 // razu w konstruktorze, wiec ustawiony pozniej rozmiar dawal plansze 7x7 pod
 // gra 6x6 — i dokladnie tak sie to pierwszy raz zachowalo.
@@ -38,11 +43,11 @@ function setTheme(next) {
   scene.remove(board);
   board = buildBoard(theme);
   scene.add(board);
-  syncTerrain(terrainLayer, game.terrain, theme);
+  syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
   hud.setThemeLabel(theme);
 }
 
-let game = new Game({ economy, boardSize });
+let game = new Game({ economy, boardSize, scenario });
 window.__debug = { scene, camera, renderer, get game() { return game; } };
 
 // --- unit views -------------------------------------------------------
@@ -509,7 +514,7 @@ const hud = createHud(document.getElementById('hud'), {
   },
   onClearTerrain: () => {
     game.terrain.clear();
-    syncTerrain(terrainLayer, game.terrain, theme);
+    syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
     afterAction();
   },
   onStartBattle: () => {
@@ -536,6 +541,10 @@ const hud = createHud(document.getElementById('hud'), {
 
 function afterAction() {
   reconcileViews();
+  // Relikwia jedzie z kostką, a kapliczka może zmienić właściciela — więc
+  // warstwa celów musi się odświeżać po KAŻDEJ akcji, nie tylko przy zmianie
+  // motywu czy edycji mapy.
+  syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
   if (selectedUnit && (!selectedUnit.alive || selectedUnit.faction !== game.currentFaction)) {
     selectedUnit = null;
   }
@@ -608,7 +617,7 @@ function autoPlayStep() {
 }
 
 function newGame(opts) {
-  game = new Game({ economy, boardSize, ...opts });
+  game = new Game({ economy, boardSize, scenario, ...opts });
   setBoardSize(game.boardSize);
   fitCameraToBoard(camera, game.boardSize);
   scene.remove(board);
@@ -618,7 +627,7 @@ function newGame(opts) {
   deployChoice = null;
   activeAnimations.clear();
   buildAllViews();
-  syncTerrain(terrainLayer, game.terrain, theme);
+  syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
   afterAction();
 }
 
@@ -637,7 +646,7 @@ function handleDeployClick(x, z) {
     }
     if (already) game.terrain.delete(key);
     else game.terrain.set(key, deployChoice.terrain);
-    syncTerrain(terrainLayer, game.terrain, theme);
+    syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
     afterAction();
     return;
   }
@@ -658,7 +667,7 @@ function handleDeployClick(x, z) {
 // clicks. Not used by the game itself — safe to leave in for a prototype.
 // Test hook, alongside selectUnitById: lets a harness edit game.terrain
 // directly and then see the result, without going through the deploy UI.
-window.__debug.syncTerrain = () => syncTerrain(terrainLayer, game.terrain, theme);
+window.__debug.syncTerrain = () => syncTerrain(terrainLayer, game.terrain, theme, game.objectives, game.relics);
 
 window.__debug.selectUnitById = (id) => {
   selectedUnit = game.units.find((u) => u.id === id) || null;

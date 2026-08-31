@@ -27,10 +27,10 @@ import { BOARD_SIZE, inBounds, isWall } from './board.js';
  *  Other units are treated as passable: they move, so routing around a body
  *  that will not be there next turn is not worth the detour. Only stone is
  *  permanent. */
-function distanceField(enemies, terrain, size = BOARD_SIZE) {
+function distanceField(sources, terrain, size = BOARD_SIZE) {
   const dist = new Map();
   const queue = [];
-  for (const e of enemies) {
+  for (const e of sources) {
     const key = `${e.x},${e.z}`;
     if (!dist.has(key)) {
       dist.set(key, 0);
@@ -53,6 +53,38 @@ function distanceField(enemies, terrain, size = BOARD_SIZE) {
   // Walled off entirely: treat as very far rather than infinite, so scores
   // stay finite and comparable.
   return (x, z) => dist.get(`${x},${z}`) ?? size * 2;
+}
+
+/** O ile lepsze jest to pole ze wzgledu na CELE, a nie na wroga.
+ *
+ *  Bez tej funkcji cele sa martwa litera: AI widzi tylko przeciwnika, wiec
+ *  punktuje przypadkiem albo wcale, a pomiar scenariusza mierzy szum.
+ *  Zwraca 0 w scenariuszu 'leader', gdzie zadnych celow nie ma. */
+function objectivePull(game, unit, tile, fields) {
+  const { toObjective, toRelic, homeRow } = fields;
+  let score = 0;
+
+  // Kurier ma dokladnie jedno zadanie i jest nim wlasny tyl planszy.
+  if (homeRow !== null && game.isCarrying(unit)) {
+    const now = Math.abs(unit.z - homeRow);
+    const then = Math.abs(tile.z - homeRow);
+    if (then === 0) return SCORE.relicDeliver;
+    return (now - then) * SCORE.carryHomePerTile;
+  }
+
+  if (toRelic) {
+    if (game.relics.some((r) => !r.carrier && r.x === tile.x && r.z === tile.z)) {
+      score += SCORE.relicPickup;
+    } else {
+      score += (toRelic(unit.x, unit.z) - toRelic(tile.x, tile.z)) * SCORE.relicPerTile;
+    }
+  }
+
+  if (toObjective) {
+    if (scoresOn(game, tile, unit.topLabel)) score += SCORE.standOnObjective;
+    else score += (toObjective(unit.x, unit.z) - toObjective(tile.x, tile.z)) * SCORE.objectivePerTile;
+  }
+  return score;
 }
 
 /** Would tipping toward `dir` leave this unit actually able to strike?
@@ -112,6 +144,20 @@ const SCORE = {
   retreatPerTile: 50,
   guardWhileEngaged: 80,
   exposedWhileEngaged: -70,
+
+  // --- cele -----------------------------------------------------------
+  // Bez tego cele istnialyby w zasadach, a nie w grze: AI chodziloby po
+  // planszy dokladnie tak jak przedtem, a punktowanie bylo funkcja przypadku.
+  objectivePerTile: 28, // gradient „blizej wolnej kapliczki"
+  standOnObjective: 340,
+  // Stoisz na kapliczce ze sciana ataku, czyli nie punktujesz. Przekrecenie
+  // sie na cokolwiek innego JEST tu ruchem punktujacym — i wprost licytuje
+  // z gotowoscia bojowa, o co w tej zasadzie chodzi.
+  holdObjectiveFace: 300,
+  relicPerTile: 40,
+  relicPickup: 520,
+  carryHomePerTile: 90, // niosac masz jeden cel i jest nim wlasny tyl planszy
+  relicDeliver: 1400,
 };
 
 // Losing the leader loses the game outright, and a leader dies to the same
@@ -161,10 +207,29 @@ function isImmediateReversal(unit, type, dir) {
   return wasMove && isMove && prev.dir === oppositeDir(dir);
 }
 
+/** Pola, ktore ta strona chce zajac. Kapliczka juz trzymana przez nas nie
+ *  ciagnie nikogo wiecej — inaczej cala warbanda zbieglaby sie na jedno pole. */
+function openObjectives(game, faction) {
+  return game.objectives.filter((o) => {
+    const u = game.units.find((x) => x.alive && x.x === o.x && x.z === o.z);
+    return !u || u.faction !== faction;
+  });
+}
+
+/** Czy stojac na tym polu z ta sciana faktycznie punktujesz. */
+const scoresOn = (game, tile, topLabel) =>
+  game.objectives.some((o) => o.x === tile.x && o.z === tile.z) && !ATTACK_LABELS.has(topLabel);
+
 function scoreCandidates(game, myUnits, enemies) {
   const out = [];
   // One flood fill per decision, shared by every candidate move.
   const distanceTo = distanceField(enemies, game.terrain, game.boardSize);
+  // Te same zalewy, ale do celow. Liczone raz na decyzje, nie raz na kandydata.
+  const open = game.objectives.length ? openObjectives(game, game.currentFaction) : [];
+  const toObjective = open.length ? distanceField(open, game.terrain, game.boardSize) : null;
+  const freeRelics = game.relics.filter((r) => !r.carrier);
+  const toRelic = freeRelics.length ? distanceField(freeRelics, game.terrain, game.boardSize) : null;
+  const homeRow = game.relics.length ? game.homeRowOf(game.currentFaction) : null;
   // A leader may only play it safe while someone else can still do the
   // fighting; once the healthy rank and file are gone it has to commit.
   const leaderMayHide = myUnits.some((u) => !u.type.isLeader && !u.isWounded);
@@ -212,7 +277,8 @@ function scoreCandidates(game, myUnits, enemies) {
       const there = distanceTo(nx, nz);
       let score =
         positionalScore(unit, here, there, SCORE.closePerTile, leaderMayHide) +
-        engagementBonus(unit.topLabel, there === 1);
+        engagementBonus(unit.topLabel, there === 1) +
+        objectivePull(game, unit, { x: nx, z: nz }, { toObjective, toRelic, homeRow });
       // A rallying commander wants to be within reach of its own troops,
       // because that is the only way the aura pays anything at all.
       if (unit.type.isLeader && game.rallyMode !== 'none' && game.rallyMode !== 'army') {
@@ -243,6 +309,17 @@ function scoreCandidates(game, myUnits, enemies) {
         if (unit.type.isLeader && here > LEADER_KEEP_AWAY && RALLY_LABELS.has(newTop)) {
           add(SCORE.rally, { type: 'rollInPlace', unit, dir });
         }
+        // Stoisz na kapliczce, ale z bronią w górze — czyli nie punktujesz.
+        // Przekręcenie się na cokolwiek innego jest tutaj ruchem punktującym.
+        // To jest ta zasada w działaniu: nie da się jednocześnie trzymać pola
+        // i grozić z niego, bo góra kostki jest jedna.
+        if (
+          game.objectives.some((o) => o.x === unit.x && o.z === unit.z) &&
+          ATTACK_LABELS.has(unit.topLabel) &&
+          !ATTACK_LABELS.has(newTop)
+        ) {
+          add(SCORE.holdObjectiveFace, { type: 'rollInPlace', unit, dir });
+        }
       }
     }
 
@@ -255,7 +332,13 @@ function scoreCandidates(game, myUnits, enemies) {
       const nz = unit.z + d.z;
       const there = distanceTo(nx, nz);
       const newTop = unit.topAfterTurning(dir);
-      let score = positionalScore(unit, here, there, SCORE.rollClosePerTile, leaderMayHide);
+      let score =
+        positionalScore(unit, here, there, SCORE.rollClosePerTile, leaderMayHide) +
+        // Uwaga: przyciąganie liczone dla ŚCIANY, KTÓRA WYPADNIE po tym
+        // przewrocie, nie dla obecnej — inaczej AI wjeżdżałoby na kapliczkę
+        // przewrotem, który stawia mu na wierzchu broń, i nie punktowało.
+        objectivePull(game, { ...unit, topLabel: newTop }, { x: nx, z: nz },
+                      { toObjective, toRelic, homeRow });
       // Arming yourself is the main reason to spend 2 AP on a roll — and it
       // has to outweigh the step back it costs. Changing your face REQUIRES
       // moving, so a unit standing next to an enemy can only arm itself by

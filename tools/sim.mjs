@@ -61,8 +61,10 @@ export function makeTerrain(seed, { boardSize, density = 0.12 }) {
 }
 
 /** Rozegraj jedną partię i zwróć, co się w niej działo. */
-export function play({ deployment, terrain = null, boardSize, economy = 'freestep', apPerTurn, stallLimit }) {
+export function play({ deployment, terrain = null, boardSize, economy = 'freestep', apPerTurn, stallLimit, scenario, scoreTarget }) {
   const opts = { deploy: true, economy, boardSize };
+  if (scenario) opts.scenario = scenario;
+  if (scoreTarget != null) opts.scoreTarget = scoreTarget;
   if (apPerTurn != null) opts.apPerTurn = apPerTurn;
   if (stallLimit != null) opts.stallLimit = stallLimit;
   const g = new Game(opts);
@@ -107,7 +109,15 @@ export function play({ deployment, terrain = null, boardSize, economy = 'freeste
   const dice = deployment.length;
   return {
     turns: g.turnNumber,
+    winner: g.winner,
+    humansWin: g.winner === 'humans',
+    orcsWin: g.winner === 'orcs',
+    endReason: g.endReason,
     exhaustion: g.endReason === 'exhaustion',
+    byScore: g.endReason === 'score',
+    byLeader: g.endReason === 'leader',
+    byWipeout: g.endReason === 'wipeout',
+    draw: g.gameOver && g.winner === null,
     unresolved: !g.gameOver,
     casualties: dice - g.aliveUnits().length,
     participation: m.actors.size / dice,

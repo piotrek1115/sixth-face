@@ -10,6 +10,7 @@ export function createHud(root, actions) {
       <div class="faction-badge humans" id="badge-humans">Humans</div>
       <div class="ap-pips" id="apPips"></div>
       <div class="turn-label" id="turnLabel">Turn 1</div>
+      <div class="turn-label" id="scoreLabel"></div>
       <button id="endTurnBtn">End Turn</button>
       <button id="autoPlayBtn">▶ Auto-Play</button>
       <button id="themeBtn">☀ Light</button>
@@ -75,6 +76,18 @@ export function createHud(root, actions) {
       root.querySelector('#modeBtn').onclick = () =>
         deploying ? actions.onNewStandardGame() : actions.onNewCustomGame();
       latestGame = game;
+      // Wynik pokazujemy tylko wtedy, gdy w tym scenariuszu w ogole istnieje —
+      // w duelu pusty licznik "0:0" sugerowalby cel, ktorego nie ma.
+      const scoreEl = root.querySelector('#scoreLabel');
+      if (game.scoreTarget == null) {
+        scoreEl.textContent = '';
+        scoreEl.title = '';
+      } else {
+        scoreEl.textContent = `${game.score.humans} : ${game.score.orcs} / ${game.scoreTarget}`;
+        scoreEl.title = game.relics.length
+          ? 'Trzymasz relikwię — punkt za każdą na koniec twojej tury. Niosąc nie możesz przekręcać kostki.'
+          : 'Stoisz na kapliczce NIE pokazując ściany ataku — punkt na koniec twojej tury.';
+      }
       const free = game.economy === 'freestep';
       const ecoBtn = root.querySelector('#ecoBtn');
       ecoBtn.textContent = free ? '⚡ Free step' : '⛓ AP pool';

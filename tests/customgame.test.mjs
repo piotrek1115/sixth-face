@@ -82,7 +82,12 @@ test('every action works normally in a custom game', () => {
   g.ap = 40;
   g.attack(sword);
   assert.equal(orc.alive, false, 'second hit finishes it');
-  assert.equal(g.gameOver, false, 'no leaders on the board, so no win condition yet');
+  // Kiedys ta linijka brzmiala „brak dowodcow, wiec nie ma jeszcze warunku
+  // zwyciestwa" — i opisywala realna luke: dalo sie wybic przeciwnika do zera,
+  // a partia trwala dalej. Wybicie warbandy konczy gre.
+  assert.equal(g.gameOver, true, 'the last enemy die is gone — that is a wipeout');
+  assert.equal(g.endReason, 'wipeout');
+  assert.equal(g.winner, 'humans');
 });
 
 test('a custom game still ends when a deployed leader falls', () => {

@@ -157,6 +157,49 @@ przyrząd pomiarowy.
 **Zrobione, gdy:** obie strony przestają zbiegać się w centrum — mierzalnie,
 w porównaniu z tagiem `v1-chess`.
 
+### WYNIK (`tools/objectives.mjs`, 200 map na scenariusz)
+
+| | leader | **shrines** | relic |
+|---|---|---|---|
+| dryf | 0,64 | **0,81** | 0,77 |
+| tur | 13,1 | 19,9 | 13,9 |
+| strat / 10 kości | 4,5 | 6,1 | 4,7 |
+| koniec na punkty | 0% | **50%** | 87% |
+| koniec przez wybicie | 0% | **48%** | 12% |
+| wyczerpanie | 13% | **3%** | 2% |
+| ludzie : orkowie | 50:50 | **52:48** | **67:34** |
+
+**Kapliczki zdane, i to najlepszym wynikiem w całej przebudowie.** Dryf idzie
+z 0,64 na 0,81 — wobec 0,36 w wersji szachowej to ponad dwukrotność. Podział
+50/48 między wygraną na punkty a wybiciem warbandy znaczy, że obie drogi są
+żywe: ani rzeź, ani siedzenie na polach nie dominuje. Strony 52:48, czyli
+uczciwie. Wyczerpanie spada 13% → 3%.
+
+Dwie poprawki po drodze, obie wykryte pomiarem:
+- **Licznik „nic się nie dzieje" liczył wyłącznie ciosy.** Przy celach to błąd
+  kategorii: partia, w której ktoś co turę zdobywa punkt, POSTĘPUJE, tylko
+  bezkrwawo. Zdobycie punktu zeruje licznik tak samo jak trafienie. To samo
+  ścięło wyczerpanie z 13% na 3%.
+- **AI musiało dostać cele do wyceny** (`objectivePull` w ai.js), inaczej
+  chodziłoby dokładnie jak przedtem i pomiar mierzyłby szum.
+
+### RELIKWIA — nie działa, cztery zmierzone tryby awarii
+
+| konfiguracja | co się stało |
+|---|---|
+| 2 relikwie, „przynieś jedną" | 88–91% na punkty, 3,1 strat — dwa równoległe pasjanse, strony się nie spotykają |
+| 2 relikwie, „przynieś obie" | 43% wyczerpania — kurier nie może się przekręcać, więc jest wolny i kruchy |
+| 1 relikwia po środku | 39:59 dla orków — na planszy o parzystym boku żadne pole nie leży w równej odległości od obu krawędzi, a pierwszy ruch tego nie kompensuje |
+| łup punktujący co turę | 67:34 dla ludzi — kto zaczyna, ten chwyta pierwszy i przewaga narasta liniowo |
+
+Wniosek nie jest liczbowy tylko konstrukcyjny: **cel przenośny w grze z ruchem
+naprzemiennym premiuje pierwszego gracza w sposób, którego nie da się
+wystroić progiem punktowym.** Zostaje w kodzie jako scenariusz oznaczony
+„niezbalansowany". Wraca dopiero z jakąś formą kompensaty dla drugiego gracza.
+
+**Atak/obrona odłożony** — wymaga AI, które rozumie „trzymaj i czekaj", a tego
+nie ma. Nie chcę go udawać.
+
 ---
 
 ## Faza 4 — słownik ścian (2 dni, głównie projekt na papierze)
