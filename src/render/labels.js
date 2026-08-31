@@ -18,6 +18,69 @@ const FACTION_ART = {
   humans: `${ART_BASE}human-face.png`,
 };
 
+/** Malowana grafika PER ŚCIANA.
+ *
+ *  Kluczem jest ZDOLNOŚĆ, nie kostka: w grze jest 60 ścian, ale tylko 24
+ *  różne (12 na frakcję), bo Guard, Wounded, Loose, Bash, Sweep i Stagger
+ *  powtarzają się na wielu kostkach. Malujesz Guard raz i pojawia się na
+ *  każdej ludzkiej kości — i tak ma być, bo gracz musi umieć przeczytać
+ *  planszę, a to znaczy, że ta sama zdolność ma wyglądać tak samo.
+ *
+ *  Kolejność szukania, od szczegółu do ogółu — pierwszy trafiony wygrywa:
+ *    1. art/faces/<frakcja>/<jednostka>-<sciana>.jpg   ← wyjątek dla jednej kostki
+ *    2. art/faces/<frakcja>/<sciana>.jpg               ← normalny przypadek
+ *    3. <frakcja>-face.png                             ← stara grafika całej frakcji
+ *    4. płaski kolor                                   ← gdy nie ma nic
+ *
+ *  Brak pliku NIE jest błędem — gra chodzi dalej na tym, co niżej w łańcuchu,
+ *  więc możesz dokładać obrazki po jednym i patrzeć, jak przybywają. */
+const slug = (label) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+// .jpg i .png, bo eksport z różnych programów wychodzi różnie, a 404 na
+// nieistniejącym wariancie nic nie kosztuje.
+const EXTS = ['jpg', 'png'];
+const faceArtUrls = (label, faction, unitTypeId) => {
+  const dir = `${ART_BASE}art/faces/${faction}/`;
+  const names = [unitTypeId ? `${unitTypeId}-${slug(label)}` : null, slug(label)].filter(Boolean);
+  return names.flatMap((n) => EXTS.map((e) => `${dir}${n}.${e}`));
+};
+
+const faceArt = new Map(); // url -> HTMLImageElement (tylko te, ktore sie wczytaly)
+const faceArtTried = new Set();
+
+/** Sprobuj wczytac obrazki tej sciany i przemaluj ja, jesli ktorys dojdzie.
+ *  Asynchronicznie i w miejscu: ta sama CanvasTexture zostaje zywa, wiec
+ *  reszta silnika nie musi o niczym wiedziec. */
+function loadFaceArt(entry) {
+  for (const url of faceArtUrls(entry.label, entry.faction, entry.unitTypeId)) {
+    if (faceArt.has(url)) { repaint(entry); return; }
+    if (faceArtTried.has(url)) continue;
+    faceArtTried.add(url);
+    const img = new Image();
+    img.onload = () => {
+      faceArt.set(url, img);
+      for (const e of painted) {
+        if (faceArtUrls(e.label, e.faction, e.unitTypeId).includes(url)) repaint(e);
+      }
+    };
+    img.onerror = () => {}; // brak pliku to nie blad, tylko „jeszcze nie namalowane"
+    img.src = url;
+  }
+}
+
+function repaint(entry) {
+  paintFace(entry);
+  entry.texture.needsUpdate = true;
+}
+
+/** Najlepsza dostepna grafika dla tej sciany, wedlug lancucha wyzej. */
+function artFor(label, faction, unitTypeId) {
+  for (const url of faceArtUrls(label, faction, unitTypeId)) {
+    const img = faceArt.get(url);
+    if (img) return img;
+  }
+  return artwork[faction];
+}
+
 function fallbackColorFor(label, faction) {
   if (DEATH_LABELS.has(label)) return '#20242c';
   if (label === 'Guard') return faction === 'humans' ? '#1e3a6e' : '#6e2f0f';
@@ -31,8 +94,8 @@ const painted = []; // every face we've drawn, so art can repaint them later
 const artwork = {}; // faction -> HTMLImageElement once loaded
 
 function paintFace(entry) {
-  const { ctx, label, faction, withLabel } = entry;
-  const art = artwork[faction];
+  const { ctx, label, faction, withLabel, unitTypeId } = entry;
+  const art = artFor(label, faction, unitTypeId);
 
   if (art) {
     // Cover the face with the artwork, cropping to square if needed.
@@ -126,8 +189,8 @@ for (const [faction, url] of Object.entries(FACTION_ART)) loadFactionArt(faction
 /** Builds (and caches) a canvas texture for one die face. Pass
  *  `withLabel: false` for the bare-artwork variant used by whichever face is
  *  currently on top. */
-export function labelTexture(label, faction, { withLabel = true } = {}) {
-  const key = `${label}|${faction}|${withLabel}`;
+export function labelTexture(label, faction, { withLabel = true, unitTypeId = null } = {}) {
+  const key = `${label}|${faction}|${withLabel}|${unitTypeId ?? ''}`;
   if (cache.has(key)) return cache.get(key);
 
   const canvas = document.createElement('canvas');
@@ -138,10 +201,11 @@ export function labelTexture(label, faction, { withLabel = true } = {}) {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
 
-  const entry = { canvas, ctx, label, faction, texture, withLabel };
+  const entry = { canvas, ctx, label, faction, texture, withLabel, unitTypeId };
   painted.push(entry);
   paintFace(entry);
   texture.needsUpdate = true;
+  loadFaceArt(entry);
 
   cache.set(key, texture);
   return texture;

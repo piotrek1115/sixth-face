@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="2348" viewBox="0 0 1536 2348">
+  <rect width="1536" height="2348" fill="#f6f5f2"/>
+  <text x="40" y="76" font-family="Helvetica" font-size="54" font-weight="bold" fill="#111">Orc Boy</text>
+  <text x="40" y="122" font-family="Helvetica" font-size="26" fill="#6b7280">orcs · lekka (tip za 1 AP)</text>
+  <text x="40" y="176" font-family="Consolas,monospace" font-size="25" fill="#111">przechył: N→Bash   E→Chop   S→Roar   W→Sweep</text>
+  <text x="40" y="228" font-family="Helvetica" font-size="23" fill="#6b7280">Maluj każdy kwadrat PIONOWO — nic nie obracaj. Strzałka pokazuje górę obrazka.</text>
+  <text x="40" y="264" font-family="Helvetica" font-size="23" fill="#8a5f10">Ta sama zdolność na innej kostce = ten sam plik. Malujesz 12 obrazków na frakcję, nie 60.</text>
+  
+  <g>
+    <rect x="512" y="300" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="536" y="324" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="540" y="362" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">GÓRA</text>
+    <text x="768" y="562" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Guard</text>
+    <path d="M768 704 L768 608
+             M746 638 L768 608
+             L790 638"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="768" y="734" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = PÓŁNOC planszy</text>
+    <text x="768" y="770" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/guard.jpg</text>
+  </g>
+  <g>
+    <rect x="0" y="812" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="24" y="836" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="28" y="874" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">ZACHÓD</text>
+    <text x="256" y="1074" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Chop</text>
+    <path d="M256 1216 L256 1120
+             M234 1150 L256 1120
+             L278 1150"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="256" y="1246" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = góra kostki</text>
+    <text x="256" y="1282" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/chop.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="812" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="536" y="836" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="540" y="874" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">POŁUDNIE</text>
+    <text x="768" y="1074" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Bash</text>
+    <path d="M768 1216 L768 1120
+             M746 1150 L768 1120
+             L790 1150"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="768" y="1246" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = góra kostki</text>
+    <text x="768" y="1282" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/bash.jpg</text>
+  </g>
+  <g>
+    <rect x="1024" y="812" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="1048" y="836" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="1052" y="874" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">WSCHÓD</text>
+    <text x="1280" y="1074" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Sweep</text>
+    <path d="M1280 1216 L1280 1120
+             M1258 1150 L1280 1120
+             L1302 1150"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="1280" y="1246" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = góra kostki</text>
+    <text x="1280" y="1282" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/sweep.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="1324" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="536" y="1348" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="540" y="1386" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">SPÓD</text>
+    <text x="768" y="1586" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Wounded</text>
+    <path d="M768 1728 L768 1632
+             M746 1662 L768 1632
+             L790 1662"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="768" y="1758" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = POŁUDNIE planszy</text>
+    <text x="768" y="1794" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/wounded.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="1836" width="512" height="512" fill="#ffffff" stroke="#111" stroke-width="4"/>
+    <rect x="536" y="1860" width="464" height="464" fill="none"
+          stroke="#c9ccd4" stroke-width="2" stroke-dasharray="10 10"/>
+    <text x="540" y="1898" font-family="Helvetica" font-size="30" font-weight="bold" fill="#111">PÓŁNOC</text>
+    <text x="768" y="2098" font-family="Georgia" font-size="62"
+          fill="#111" text-anchor="middle">Roar</text>
+    <path d="M768 2240 L768 2144
+             M746 2174 L768 2144
+             L790 2174"
+          stroke="#9aa0aa" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <text x="768" y="2270" font-family="Helvetica" font-size="21"
+          fill="#6b7280" text-anchor="middle">góra obrazka = góra kostki</text>
+    <text x="768" y="2306" font-family="Consolas,monospace" font-size="19"
+          fill="#8a5f10" text-anchor="middle">art/faces/orcs/roar.jpg</text>
+  </g>
+</svg>

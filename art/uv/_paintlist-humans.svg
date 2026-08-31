@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1716" viewBox="0 0 2048 1716">
+  <rect width="2048" height="1716" fill="#f6f5f2"/>
+  <text x="40" y="76" font-family="Helvetica" font-size="52" font-weight="bold" fill="#111">Lista do namalowania — humans</text>
+  <text x="40" y="126" font-family="Helvetica" font-size="26" fill="#6b7280">12 obrazków. Wrzuć jako public/art/faces/humans/&lt;nazwa&gt;.jpg — kwadratowe, 512×512 lub więcej.</text>
+  
+  <g>
+    <rect x="0" y="180" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="256" y="426" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Advance</text>
+    <text x="256" y="482" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 5 kostkach</text>
+    <text x="256" y="652" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">advance.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="180" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="768" y="426" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Bash</text>
+    <text x="768" y="482" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="768" y="652" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">bash.jpg</text>
+  </g>
+  <g>
+    <rect x="1024" y="180" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1280" y="426" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Brace</text>
+    <text x="1280" y="482" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 2 kostkach</text>
+    <text x="1280" y="652" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">brace.jpg</text>
+  </g>
+  <g>
+    <rect x="1536" y="180" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1792" y="426" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Command</text>
+    <text x="1792" y="482" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="1792" y="652" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">command.jpg</text>
+  </g>
+  <g>
+    <rect x="0" y="692" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="256" y="938" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Guard</text>
+    <text x="256" y="994" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 5 kostkach</text>
+    <text x="256" y="1164" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">guard.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="692" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="768" y="938" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Loose</text>
+    <text x="768" y="994" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="768" y="1164" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">loose.jpg</text>
+  </g>
+  <g>
+    <rect x="1024" y="692" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1280" y="938" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Riposte</text>
+    <text x="1280" y="994" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="1280" y="1164" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">riposte.jpg</text>
+  </g>
+  <g>
+    <rect x="1536" y="692" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1792" y="938" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Stagger</text>
+    <text x="1792" y="994" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 4 kostkach</text>
+    <text x="1792" y="1164" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">stagger.jpg</text>
+  </g>
+  <g>
+    <rect x="0" y="1204" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="256" y="1450" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Strike</text>
+    <text x="256" y="1506" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 3 kostkach</text>
+    <text x="256" y="1676" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">strike.jpg</text>
+  </g>
+  <g>
+    <rect x="512" y="1204" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="768" y="1450" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Sweep</text>
+    <text x="768" y="1506" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="768" y="1676" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">sweep.jpg</text>
+  </g>
+  <g>
+    <rect x="1024" y="1204" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1280" y="1450" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Thrust</text>
+    <text x="1280" y="1506" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 1 kostce</text>
+    <text x="1280" y="1676" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">thrust.jpg</text>
+  </g>
+  <g>
+    <rect x="1536" y="1204" width="512" height="512" fill="#fff" stroke="#111" stroke-width="4"/>
+    <text x="1792" y="1450" font-family="Georgia" font-size="60" fill="#111" text-anchor="middle">Wounded</text>
+    <text x="1792" y="1506" font-family="Helvetica" font-size="22" fill="#6b7280" text-anchor="middle">na 5 kostkach</text>
+    <text x="1792" y="1676" font-family="Consolas,monospace" font-size="20" fill="#8a5f10" text-anchor="middle">wounded.jpg</text>
+  </g>
+</svg>

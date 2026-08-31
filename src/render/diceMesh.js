@@ -46,7 +46,7 @@ function buildMaterials(unit, { withLabel = true } = {}) {
   return SLOT_ORDER.map(
     (axis) =>
       new MeshStandardMaterial({
-        map: labelTexture(f[axis], unit.faction, { withLabel }),
+        map: labelTexture(f[axis], unit.faction, { withLabel, unitTypeId: unit.unitTypeId }),
         roughness: 0.6,
         metalness: 0.05,
       })
