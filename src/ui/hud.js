@@ -43,10 +43,17 @@ export function createHud(root, actions) {
   });
 
   return {
-    setAutoPlayLabel(enabled) {
+    /** Trzy stany, nie dwa: nikt / komputer gra orkami / komputer gra sam ze
+     *  sobą. Środkowy jest tym, po co się tu przyszło — gra na jednego. */
+    setAutoPlayLabel(aiControls) {
       const btn = root.querySelector('#autoPlayBtn');
-      btn.textContent = enabled ? '⏸ Stop' : '▶ Auto-Play';
-      btn.classList.toggle('active', enabled);
+      btn.textContent =
+        aiControls === 'orcs' ? '🧠 vs AI (orcs)' : aiControls === 'both' ? '⏸ AI vs AI' : '▶ AI off';
+      btn.title =
+        aiControls === 'orcs' ? 'Ty grasz ludźmi, komputer orkami. Kliknij, żeby oglądać AI vs AI.'
+        : aiControls === 'both' ? 'Komputer gra obiema stronami. Kliknij, żeby wyłączyć.'
+        : 'Obie strony na tobie. Kliknij, żeby zagrać przeciwko komputerowi.';
+      btn.classList.toggle('active', !!aiControls);
     },
     setThemeLabel(theme) {
       root.querySelector('#themeBtn').textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';

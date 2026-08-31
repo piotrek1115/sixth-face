@@ -314,3 +314,45 @@ warte więcej niż którakolwiek faza wyżej.
    słyszy od wydawcy „za duże". Dlatego faza 7 pokazuje **jedno pudełko
    startowe**, a mieszanie frakcji i dodatki są w prezentacji, nie w
    prototypie.
+
+---
+
+## Poza roadmapą: gra na jednego i siła AI
+
+Zrobione poza kolejnością, bo bez tego nie da się w prototyp **zagrać**, a
+test na papierze (tor B) i tak jest najważniejszą niezrobioną rzeczą.
+
+**Tryb.** Przycisk w górnym pasku ma teraz trzy stany zamiast dwóch:
+`▶ AI off` (dwóch ludzi przy ekranie) → `🧠 vs AI (orcs)` (ty grasz ludźmi) →
+`⏸ AI vs AI` (do oglądania i do pomiarów). W grze na jednego komputer budzi
+się sam po twoim „End Turn".
+
+**Siła.** `tools/duel.mjs` gra profil przeciw profilowi na tych samych mapach,
+każdą mapę dwa razy z zamienionymi stronami (ludzie zaczynają, więc strona
+sama w sobie jest przewagą).
+
+| zmiana | wynik |
+|---|---|
+| **nie wchodź pod cios** (`careful` vs `plain`) | **61,0% : 39,0%** — przyjęte |
+| podnieś gardę pod ciosem (`guarded` vs `careful`) | 48,3% : 51,7% — odrzucone |
+| ta sama, ale tylko przy zagrożeniu od frontu | 49,0% : 51,0% — odrzucone |
+| **darmowy obrót przodem do zagrożenia** (`facing` vs `careful`) | **55,3% : 44,8%** — przyjęte |
+| **razem** (`facing` vs `plain`) | **64,8% : 35,3%** |
+
+Dlaczego garda nie działa jako reakcja: **blokuje wyłącznie cios od frontu, a
+atakujący sam wybiera, skąd przyjdzie.** Kupowanie jej za AP przeciw komuś,
+kto i tak obejdzie, to zmarnowana akcja. Garda jest ścianą, którą trzeba
+*mieć zawczasu*, nie odpowiedzią do kupienia. Wersja zawężona do zagrożeń
+frontalnych też nie pomogła — zostaje przełączalna, żeby wynik dało się
+powtórzyć, nie żeby jej używać.
+
+Dlaczego obrót działa: pod ekonomią `freestep` Obrót jest **darmowy**, a
+trafienie w bok kosztuje o cały cios mniej niż w front (dwa zamiast trzech).
+Stanie tyłem było poważnym błędem, którego AI nie widziało, bo obracało się
+wyłącznie po to, żeby samo uderzyć.
+
+**Skutek uboczny, uczciwie:** ostrożniejsze AI manewruje MNIEJ. Dryf przy
+kapliczkach spadł 0,81 → 0,72, a wyczerpanie w duelu 13% → 16%. Zasady się nie
+zmieniły — zmienił się styl gracza, którym mierzymy. Podział 48/47 między
+wygraną na punkty a wybiciem warbandy się utrzymał, czyli struktura
+scenariusza jest odporna na siłę przeciwnika.

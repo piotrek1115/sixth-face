@@ -533,9 +533,9 @@ const hud = createHud(document.getElementById('hud'), {
     newGame(game.phase === 'deploy' ? { deploy: true } : undefined);
   },
   onToggleAutoPlay: () => {
-    autoPlayEnabled = !autoPlayEnabled;
-    hud.setAutoPlayLabel(autoPlayEnabled);
-    if (autoPlayEnabled) autoPlayStep();
+    aiControls = AI_MODES[(AI_MODES.indexOf(aiControls) + 1) % AI_MODES.length];
+    hud.setAutoPlayLabel(aiControls);
+    afterAction();
   },
 });
 
@@ -550,7 +550,14 @@ function afterAction() {
   }
   refreshHighlights();
   hud.update(game, selectedUnit, selectedUnit ? views.get(selectedUnit.id) : null, deployChoice);
+  // Twoja tura sie skonczyla -> komputer podejmuje swoja. Bez tego w grze na
+  // jednego trzeba by go budzic recznie po kazdym „End Turn".
+  if (aiToMove() && !aiTickScheduled) {
+    aiTickScheduled = true;
+    setTimeout(() => { aiTickScheduled = false; autoPlayStep(); }, AI_ACTION_DELAY_MS);
+  }
 }
+let aiTickScheduled = false;
 
 // --- AI / auto-play --------------------------------------------------
 // Both sides can be driven by the same simple heuristic (src/core/ai.js).
@@ -558,7 +565,12 @@ function afterAction() {
 // animate* functions a human's click or HUD button would trigger, so an
 // AI-controlled turn is visually and mechanically indistinguishable from a
 // human one (same animations, same AP costs, same automatic elimination).
-let autoPlayEnabled = false;
+// Kto jest prowadzony przez AI:
+//   null    — nikt, dwóch ludzi przy jednym ekranie
+//   'orcs'  — TY grasz ludźmi, komputer orkami (gra na jednego)
+//   'both'  — komputer gra sam ze sobą, do oglądania i do pomiarów
+let aiControls = null;
+const AI_MODES = [null, 'orcs', 'both'];
 const AI_ACTION_DELAY_MS = 550;
 // Pod 'freestep' tura ma ~11 akcji zamiast ~3, bo cała warbanda idzie za
 // darmo. Przy jednym tempie dla wszystkiego oglądanie tury trwa cztery razy
@@ -567,13 +579,16 @@ const AI_ACTION_DELAY_MS = 550;
 const AI_FREE_MOVE_DELAY_MS = 180;
 let lastAiActionWasFree = false;
 
+/** Czy komputer ma teraz ruch. Rozdzielone od „czy AI jest wlaczone", bo w
+ *  grze na jednego AI jest wlaczone przez cala partie, ale rusza sie tylko w
+ *  swojej turze — a w miedzyczasie plansza musi byc twoja. */
+function aiToMove() {
+  if (!aiControls || game.gameOver || game.phase !== 'battle') return false;
+  return aiControls === 'both' || game.currentFaction === aiControls;
+}
+
 function autoPlayStep() {
-  if (!autoPlayEnabled) return;
-  if (game.gameOver) {
-    autoPlayEnabled = false;
-    hud.setAutoPlayLabel(false);
-    return;
-  }
+  if (!aiToMove()) return;
   if (activeAnimations.size > 0) {
     setTimeout(autoPlayStep, 80); // wait for the in-flight animation to settle
     return;
@@ -604,11 +619,15 @@ function autoPlayStep() {
     if (!ok) {
       // Shouldn't happen (the AI only proposes legal moves) — bail out
       // rather than spin forever if it ever does.
-      autoPlayEnabled = false;
-      hud.setAutoPlayLabel(false);
+      aiControls = null;
+      hud.setAutoPlayLabel(aiControls);
       return;
     }
-  } else if (game.ap > 0) {
+  } else {
+    // Nic nie warto robic — oddaj ture. Bylo tu `else if (game.ap > 0)`, co
+    // pod 'freestep' zapetlalo sie w nieskonczonosc: przy pustej puli i
+    // niewykorzystanych darmowych akcjach tura sie nie konczyla sama, a ten
+    // warunek nie pozwalal jej zakonczyc.
     game.endTurn();
     afterAction();
   }
@@ -936,6 +955,7 @@ function rafLoop(now) {
   requestAnimationFrame(rafLoop);
 }
 
+hud.setAutoPlayLabel(aiControls); // etykieta musi opisywac stan startowy
 afterAction();
 requestAnimationFrame(rafLoop);
 

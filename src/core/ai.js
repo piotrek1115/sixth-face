@@ -10,7 +10,8 @@
 // fixes both: a turn is only worth anything if it actually enables an attack
 // this turn, and undoing your own last move is refused outright.
 import { DIR_ORDER, nextDir, oppositeDir, DIRECTION_VECTORS } from './orientation.js';
-import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS } from './units.js';
+import { ATTACK_LABELS, WOUNDED_LABEL, RALLY_LABELS, RANGE_BY_LABEL, MIN_RANGE_BY_LABEL,
+         FAN_LABELS } from './units.js';
 import { BOARD_SIZE, inBounds, isWall } from './board.js';
 
 
@@ -53,6 +54,62 @@ function distanceField(sources, terrain, size = BOARD_SIZE) {
   // Walled off entirely: treat as very far rather than infinite, so scores
   // stay finite and comparable.
   return (x, z) => dist.get(`${x},${z}`) ?? size * 2;
+}
+
+/** Czy ten wrog moglby uderzyc w to pole w swojej nastepnej turze.
+ *
+ *  Swiadomie zgrubne w jedna strone: zakladamy, ze przeciwnik zdazy sie
+ *  przekrecic na sciane ataku (przy trzech AP zwykle zdazy), wiec liczy sie
+ *  geometria — linia, zasieg, sciany — a nie to, co akurat ma na wierzchu.
+ *  Zgadywanie w druga strone („nie ma teraz broni, wiec jestem bezpieczny")
+ *  bylo dokladnie tym bledem, ktory chcemy usunac. */
+function threatensTile(game, enemy, tile) {
+  if (enemy.isWounded) return false; // ranna kostka tylko sie wlecze
+  const dx = tile.x - enemy.x;
+  const dz = tile.z - enemy.z;
+
+  // Sweep siega tez na skos o jedno pole — jedyne zagrozenie, ktore nie
+  // biegnie wzdluz osi, wiec latwo je przeoczyc.
+  const hasFan = Object.values(enemy.type.faces).some((f) => FAN_LABELS.has(f));
+  if (hasFan && Math.abs(dx) === 1 && Math.abs(dz) === 1) return true;
+
+  if (dx !== 0 && dz !== 0) return false;
+  const dist = Math.abs(dx) + Math.abs(dz);
+  if (dist === 0) return false;
+
+  // Najdalszy zasieg, jaki ta kostka moze miec na ktorejkolwiek scianie.
+  let reach = enemy.type.reach ?? 1;
+  let minRange = 1;
+  for (const face of Object.values(enemy.type.faces)) {
+    if (!ATTACK_LABELS.has(face)) continue;
+    reach = Math.max(reach, RANGE_BY_LABEL[face] ?? 1);
+    if (RANGE_BY_LABEL[face]) minRange = Math.min(minRange, MIN_RANGE_BY_LABEL[face] ?? 1);
+  }
+  if (dist > reach || dist < minRange) return false;
+
+  const stepX = Math.sign(dx);
+  const stepZ = Math.sign(dz);
+  for (let i = 1; i < dist; i++) {
+    if (isWall(game.terrain, enemy.x + stepX * i, enemy.z + stepZ * i)) return false;
+  }
+  return true;
+}
+
+/** Ile kosztuje stanie na tym polu, jesli przeciwnik odpowie najlepiej jak
+ *  umie. Liczone SKUTKIEM: rana czy smierc, nie sam fakt bycia w zasiegu. */
+function dangerAt(game, unit, tile, enemies, topLabel = unit.topLabel) {
+  let worst = 0;
+  for (const e of enemies) {
+    if (!threatensTile(game, e, tile)) continue;
+    // Garda chroni tylko od frontu, a atakujacy sam wybiera, skad przyjdzie —
+    // wiec traktujemy ja jako oslone tylko wtedy, gdy wrog stoi na wprost.
+    const frontal = topLabel === 'Guard';
+    const cost = unit.isWounded ? SCORE.dangerKilled
+      : frontal ? SCORE.dangerDisarmed
+      : SCORE.dangerWounded;
+    worst = Math.min(worst, cost);
+  }
+  return worst;
 }
 
 /** O ile lepsze jest to pole ze wzgledu na CELE, a nie na wroga.
@@ -158,6 +215,25 @@ const SCORE = {
   relicPickup: 520,
   carryHomePerTile: 90, // niosac masz jeden cel i jest nim wlasny tyl planszy
   relicDeliver: 1400,
+
+  // --- nie wchodz pod cios -------------------------------------------
+  // Jedyna rzecz, ktora AI robilo naprawde glupio z punktu widzenia
+  // czlowieka: stawalo na polu, z ktorego przeciwnik zabijal je w nastepnej
+  // turze, bo liczylo tylko wlasny zysk. Kara jest wazona SKUTKIEM, nie
+  // sama obecnoscia zagrozenia — wejscie pod cios z podniesiona garda
+  // kosztuje niewiele, wejscie tam ranna kostka kosztuje partie.
+  dangerKilled: -900,
+  dangerWounded: -260,
+  dangerDisarmed: -55,
+  // Podniesienie tarczy, kiedy cios juz nadchodzi. Bez tego AI stalo pod
+  // wzniesiona bronia z odsloniete bokiem i nie robilo NIC — bo przekrecenie
+  // sie bylo punktowane wylacznie wtedy, gdy dawalo wlasny atak.
+  guardUpUnderThreat: 330,
+  // Obrot przodem do zagrozenia. Pod ekonomia 'freestep' Obrot jest DARMOWY,
+  // a bok kosztuje o cale trafienie mniej niz front (dwa ciosy zamiast
+  // trzech) — wiec stanie tylem do wroga jest powaznym bledem, ktorego AI
+  // dotad nie widzialo: obracalo sie wylacznie po to, zeby samo uderzyc.
+  faceTheThreat: 90,
 };
 
 // Losing the leader loses the game outright, and a leader dies to the same
@@ -220,7 +296,7 @@ function openObjectives(game, faction) {
 const scoresOn = (game, tile, topLabel) =>
   game.objectives.some((o) => o.x === tile.x && o.z === tile.z) && !ATTACK_LABELS.has(topLabel);
 
-function scoreCandidates(game, myUnits, enemies) {
+function scoreCandidates(game, myUnits, enemies, profile) {
   const out = [];
   // One flood fill per decision, shared by every candidate move.
   const distanceTo = distanceField(enemies, game.terrain, game.boardSize);
@@ -258,11 +334,22 @@ function scoreCandidates(game, myUnits, enemies) {
     // the 'freestep' economy the turn is free, so lining up an attack needs
     // only the attack's own AP.
     const turnCost = game.economy === 'freestep' ? 0 : 1;
-    if (game.canTurn(unit) && game.ap >= turnCost + 1) {
+    if (game.canTurn(unit)) {
+      const threat = enemies.find((e) => threatensTile(game, e, unit));
       for (const cw of [true, false]) {
         const facing = nextDir(unit.facing, cw);
-        if (couldAttackFacing(game, unit, facing)) {
+        if (game.ap >= turnCost + 1 && couldAttackFacing(game, unit, facing)) {
           add(SCORE.turnIntoAttack, { type: 'turn', unit, cw });
+        }
+        // Darmowy obrot przodem do tego, kto zaraz uderzy. Kosztuje tylko
+        // darmowa akcje tej kostki, a zamienia trafienie w bok na trafienie
+        // w front — czyli o jeden cios wiecej zycia.
+        if (
+          profile.faceThreat && turnCost === 0 && threat &&
+          game._compassDirTo(unit, threat) === facing &&
+          game._compassDirTo(unit, threat) !== unit.facing
+        ) {
+          add(SCORE.faceTheThreat, { type: 'turn', unit, cw });
         }
       }
     }
@@ -279,6 +366,7 @@ function scoreCandidates(game, myUnits, enemies) {
         positionalScore(unit, here, there, SCORE.closePerTile, leaderMayHide) +
         engagementBonus(unit.topLabel, there === 1) +
         objectivePull(game, unit, { x: nx, z: nz }, { toObjective, toRelic, homeRow });
+      if (profile.danger) score += dangerAt(game, unit, { x: nx, z: nz }, enemies);
       // A rallying commander wants to be within reach of its own troops,
       // because that is the only way the aura pays anything at all.
       if (unit.type.isLeader && game.rallyMode !== 'none' && game.rallyMode !== 'army') {
@@ -320,6 +408,22 @@ function scoreCandidates(game, myUnits, enemies) {
         ) {
           add(SCORE.holdObjectiveFace, { type: 'rollInPlace', unit, dir });
         }
+        // Ktos moze mnie tu uderzyc, a ja stoje z opuszczona garda. Podniesc.
+        // Warte tylko wtedy, gdy trafienie faktycznie boli: rannej kostki
+        // garda i tak nie uratuje, a stojacej juz w gardzie nie ma po co
+        // podnosic drugi raz.
+        // Ktos moze mnie tu uderzyc, a ja stoje z opuszczona garda.
+        // ALE: garda zatrzymuje wylacznie cios od FRONTU, a atakujacy sam
+        // wybiera, skad przyjdzie. Podnoszenie jej przeciw komukolwiek
+        // wyszlo na pomiarze neutralne-do-gorszego (48,3% vs 51,7%), bo
+        // kosztowalo AP przeciw wrogowi, ktory i tak obejdzie. Warto tylko
+        // wtedy, gdy zagrozenie stoi dokladnie na linii, w ktora patrzymy.
+        if (
+          profile.guardUp && newTop === 'Guard' && unit.topLabel !== 'Guard' && !unit.isWounded &&
+          enemies.some((e) => threatensTile(game, e, unit) && game._compassDirTo(unit, e) === unit.facing)
+        ) {
+          add(SCORE.guardUpUnderThreat, { type: 'rollInPlace', unit, dir });
+        }
       }
     }
 
@@ -339,6 +443,9 @@ function scoreCandidates(game, myUnits, enemies) {
         // przewrotem, który stawia mu na wierzchu broń, i nie punktowało.
         objectivePull(game, { ...unit, topLabel: newTop }, { x: nx, z: nz },
                       { toObjective, toRelic, homeRow });
+      // Przewrot zmienia sciane, wiec i to, czy garda bedzie w gorze na
+      // polu docelowym — zagrozenie liczymy dla sciany, ktora WYPADNIE.
+      if (profile.danger) score += dangerAt(game, unit, { x: nx, z: nz }, enemies, newTop);
       // Arming yourself is the main reason to spend 2 AP on a roll — and it
       // has to outweigh the step back it costs. Changing your face REQUIRES
       // moving, so a unit standing next to an enemy can only arm itself by
@@ -355,13 +462,24 @@ function scoreCandidates(game, myUnits, enemies) {
 
 /** Decide ONE action for the current player, or null when nothing is worth
  *  doing (the caller should then end the turn). */
-export function decideAiAction(game) {
+/** 'plain' to zachowanie sprzed tej zmiany — zostaje, zeby dalo sie zmierzyc
+ *  jedno przeciw drugiemu zamiast uwierzyc, ze nowe jest lepsze. */
+export const AI_PROFILES = {
+  plain: { danger: false, guardUp: false, faceThreat: false },
+  careful: { danger: true, guardUp: false, faceThreat: false },
+  // ODRZUCONE pomiarem — patrz komentarz przy guardUpUnderThreat. Zostaje
+  // przelaczalne, zeby wynik dalo sie powtorzyc, nie zeby go uzywac.
+  guarded: { danger: true, guardUp: true, faceThreat: false },
+  facing: { danger: true, guardUp: false, faceThreat: true },
+};
+
+export function decideAiAction(game, profile = AI_PROFILES.facing) {
   const enemyFaction = game.currentFaction === 'humans' ? 'orcs' : 'humans';
   const myUnits = game.aliveUnits(game.currentFaction);
   const enemies = game.aliveUnits(enemyFaction);
   if (!enemies.length || !myUnits.length) return null;
 
-  const candidates = scoreCandidates(game, myUnits, enemies);
+  const candidates = scoreCandidates(game, myUnits, enemies, profile);
   if (!candidates.length) return null;
 
   candidates.sort((a, b) => b.score - a.score);
