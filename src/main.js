@@ -71,7 +71,7 @@ function addUnitView(unit) {
 function sceneParts(view) {
   return [
     view.dieMesh, view.facingArrow, view.guardBar, view.attackArrow,
-    view.activeLabel, view.nameLabel, view.ring,
+    view.nameLabel, view.ring,
     ...Object.values(view.edgeHints),
     ...Object.values(view.cornerTurns),
   ];
@@ -161,13 +161,15 @@ function hideTooltip() {
   tooltipEl.hidden = true;
 }
 
-/** Is the cursor over the selected die's active-face plate? */
-function pickActiveLabel(ev) {
+/** Czy kursor stoi na samej kostce. Wcześniej celem była unosząca się nad nią
+ *  tabliczka z nazwą ściany; tabliczki nie ma (nazwę niesie sama ściana), więc
+ *  podpowiedź bierze się z najechania na kostkę. */
+function pickDieUnderCursor(ev) {
   if (!selectedUnit) return null;
   const view = views.get(selectedUnit.id);
-  if (!view?.activeLabel.visible) return null;
+  if (!view?.dieMesh.visible) return null;
   setPointerFromEvent(ev);
-  return raycaster.intersectObject(view.activeLabel, false)[0] ? selectedUnit.topLabel : null;
+  return raycaster.intersectObject(view.dieMesh, false)[0] ? selectedUnit.topLabel : null;
 }
 
 /** Which face the thing under the cursor is currently naming, if any. Read
@@ -466,7 +468,6 @@ function fadeOutUnit(unit) {
     view.facingArrow.visible = false;
     view.guardBar.visible = false;
     view.attackArrow.visible = false;
-    view.activeLabel.visible = false;
     view.nameLabel.visible = false;
     view.ring.visible = false;
     view.setEdgeHints(false);
@@ -813,7 +814,11 @@ canvas.addEventListener('pointermove', (ev) => {
   hoveredTileDir = tileDir;
   hoveredCorner = corner;
   hoveredDieUnit = die;
-  hoverKind = corner ? 'corner' : edge ? 'edge' : hovered ? 'tile' : pickActiveLabel(ev) ? 'active' : null;
+  // Kostka PRZED kafelkiem: stoi na własnym polu, które i tak nigdy nie jest
+  // celem ruchu, więc kafelek pod nią nie ma nic do powiedzenia — a bez tej
+  // kolejności najechanie na kostkę nie tłumaczyło już nic, odkąd zniknęła
+  // unosząca się nad nią tabliczka, którą się wcześniej celowało.
+  hoverKind = corner ? 'corner' : edge ? 'edge' : pickDieUnderCursor(ev) ? 'active' : hovered ? 'tile' : null;
   canvas.style.cursor = corner ? 'pointer' : '';
   if (edge || corner || changed || dieChanged) refreshHighlights();
 });

@@ -60,11 +60,6 @@ function buildMaterials(unit, { withLabel = true } = {}) {
   );
 }
 
-/** How far to spin the floating nameplate so it reads along the unit's
- *  facing. rotation.z = 0 puts the text's head to the north, which is what
- *  the tactical camera (looking from the south) reads as upright — so a unit
- *  facing SOUTH gets the undisturbed label, and the others turn from there. */
-const LABEL_SPIN = { S: 0, W: -Math.PI / 2, N: Math.PI, E: Math.PI / 2 };
 
 /** A flat, always-upright plate carrying canvas text. Every hint in the game
  *  is one of these, so they all look and behave the same whether they belong
@@ -196,11 +191,11 @@ export class UnitView {
     this.unit = unit;
 
     const geo = new BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE, 1, 1, 1);
-    // Two full sets of face materials: the normal labelled ones, and bare
-    // artwork. syncTopFaceArt() swaps whichever face is currently up over to
-    // the bare set — see there.
+    // Jeden komplet materiałów. Był podwójny — zwykły i „bez napisu" dla
+    // ściany na wierzchu — bo nazwę niosła tabliczka unosząca się nad kostką
+    // i dwa napisy by się dublowały. Tabliczki nie ma: namalowana ściana ma
+    // nazwę wpisaną w rysunek, a nienamalowana dostaje ją nadrukowaną.
     this.faceMaterials = buildMaterials(unit);
-    this.bareMaterials = buildMaterials(unit, { withLabel: false });
     // Slightly bevel-free box; round the edges visually via material only for now.
     this.dieMesh = new Mesh(geo, this.faceMaterials.slice());
     this.dieMesh.castShadow = true;
@@ -236,25 +231,6 @@ export class UnitView {
     this.attackArrow.rotation.x = Math.PI / 2;
     this.attackArrow.position.y = TOP_Y;
     this.attackArrow.visible = false;
-
-    // The active face's name, floating just above the die and ALWAYS upright.
-    // The label baked into the cube texture rotates with the cube, so after a
-    // tumble it can read sideways or upside down — and the wound-skip, which
-    // turns the die a full 180°, flips it every single time. The face that
-    // actually matters is the top one, so it gets a plate that never rotates.
-    this.labelCanvas = document.createElement('canvas');
-    this.labelCanvas.width = 256;
-    this.labelCanvas.height = 96;
-    this.labelCtx = this.labelCanvas.getContext('2d');
-    this.labelTexture = new CanvasTexture(this.labelCanvas);
-    this.labelTexture.colorSpace = SRGBColorSpace;
-    this.activeLabel = new Mesh(
-      new PlaneGeometry(1.12, 0.42),
-      new MeshBasicMaterial({ map: this.labelTexture, transparent: true, depthTest: false })
-    );
-    this.activeLabel.rotation.x = -Math.PI / 2; // lies flat; y-rotation stays 0 so it never turns
-    this.activeLabel.renderOrder = 10;
-    this._drawActiveLabel();
 
     // Who this die actually is. Without it the board is a row of anonymous
     // cubes — you can read the active ability but not whether you are looking
@@ -348,45 +324,7 @@ export class UnitView {
     }
   }
 
-  /** Strip the baked-in name from whichever face is currently pointing up,
-   *  and give every other face its label back.
-   *
-   *  Which slot that is comes from the die's own orientation, so it follows
-   *  the cube through any tumble. Done here rather than by covering the face
-   *  with an opaque plate: the floating label turns with FACING while a baked
-   *  band turns with the TUMBLE, so the two are usually at right angles and
-   *  no rectangle laid over one can hide the other. */
-  syncTopFaceArt() {
-    const upAxis = this.unit.orientation.localAxisPointingTo(WORLD_UP);
-    const upSlot = SLOT_OF_AXIS[upAxis];
-    for (let i = 0; i < SLOT_ORDER.length; i++) {
-      this.dieMesh.material[i] = i === upSlot ? this.bareMaterials[i] : this.faceMaterials[i];
-    }
-  }
 
-  /** Repaints the floating name plate for whatever face is up right now. */
-  _drawActiveLabel() {
-    const ctx = this.labelCtx;
-    const { width: w, height: h } = this.labelCanvas;
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(10,9,8,0.82)';
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.34)';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(2.5, 2.5, w - 5, h - 5);
-
-    const label = this.unit.topLabel;
-    const size = label.length > 8 ? 40 : 50;
-    ctx.font = `700 ${size}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-    ctx.strokeText(label, w / 2, h / 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(label, w / 2, h / 2);
-    this.labelTexture.needsUpdate = true;
-  }
 
   setSelected(selected) {
     this.ring.visible = selected;
@@ -416,12 +354,6 @@ export class UnitView {
     this.guardBar.position.set(worldX + d.x * 0.5, TOP_Y, worldZ + d.z * 0.5);
     this.guardBar.rotation.y = angle;
 
-    // Sits above the die, centred, and turned to the unit's facing — it is
-    // the only name on the top face now, so it carries the direction too.
-    this.activeLabel.position.set(worldX, TOP_Y + 0.06, worldZ);
-    this.activeLabel.rotation.z = LABEL_SPIN[this.unit.facing] ?? 0;
-    this._drawActiveLabel();
-    this.syncTopFaceArt();
     this.nameLabel.position.set(worldX, 0.05, worldZ + 0.98);
 
     const kind = indicatorKindFor(this.unit.topLabel);
@@ -435,19 +367,13 @@ export class UnitView {
 
   dispose() {
     this.dieMesh.geometry.dispose();
-    // Both sets, not just the six currently mounted on the mesh — one bare
-    // material is swapped in at any time, which would otherwise strand its
-    // labelled twin.
-    [...this.faceMaterials, ...this.bareMaterials].forEach((m) => m.dispose());
+    this.faceMaterials.forEach((m) => m.dispose());
     this.facingArrow.geometry.dispose();
     this.facingArrow.material.dispose();
     this.guardBar.geometry.dispose();
     this.guardBar.material.dispose();
     this.attackArrow.geometry.dispose();
     this.attackArrow.material.dispose();
-    this.activeLabel.geometry.dispose();
-    this.activeLabel.material.dispose();
-    this.labelTexture.dispose();
     for (const m of [this.nameLabel, ...Object.values(this.edgeHints), ...Object.values(this.cornerTurns)]) {
       m.geometry.dispose();
       m.material.dispose();
