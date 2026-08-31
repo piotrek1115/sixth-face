@@ -34,6 +34,30 @@ public/art/faces/humans/captain-guard.jpg     ← tylko Kapitan
 Kolejność szukania, od szczegółu do ogółu, pierwszy trafiony wygrywa:
 `<jednostka>-<zdolność>` → `<zdolność>` → grafika frakcji → płaski kolor.
 
+## Kolor i ramka
+
+Grafika przychodzi jako **czarny tusz na bieli** i taka ma zostać w źródłach.
+Kolor pola dokłada gra przy wczytaniu: biel staje się barwą frakcji, czerń
+zostaje czernią, a wokół każdej ściany rysuje się czarna ramka.
+
+| frakcja | pole |
+|---|---|
+| orkowie | `#B03030` (ceglana czerwień) |
+| ludzie | `#2A4474` (stalowy błękit) |
+
+Zmiana koloru to jedna liczba w `src/render/labels.js` (`FIELD`), nie
+przemalowywanie dwudziestu czterech plików. Ten sam plik źródłowy może kiedyś
+obsłużyć kilka frakcji.
+
+Przebarwianie **nie proguje jasności** — mnoży kolor pola przez jasność
+piksela. Dzięki temu wygładzone brzegi liter zostają wygładzone; progowanie
+dałoby poszarpane kontury przy 256 px na ścianę oglądanych pod kątem.
+
+Ściany kostek renderują się z pominięciem tone mappingu sceny (`toneMapped:
+false`). Scena chodzi w ACES, który przygasza nasycone kolory — bez tego
+czerwień stempla schodziła na kostce do ciemnego bordo i grafika na planszy
+nie wyglądała jak grafika w pliku.
+
 ## Jak orientować obrazek
 
 **Maluj każdy kwadrat normalnie, pionowo. Nic nie obracaj ani nie odbijaj.**

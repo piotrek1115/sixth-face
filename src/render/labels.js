@@ -1,6 +1,17 @@
 import { CanvasTexture, SRGBColorSpace } from 'three';
 
 const SIZE = 256;
+
+/** Barwa pola pod czarnym stemplem, per frakcja.
+ *
+ *  Grafika przychodzi jako czarny tusz na bieli. Zamiast żądać od rysownika
+ *  osobnego pliku na każdy kolor, przebarwiamy ją przy wczytaniu: biel staje
+ *  się kolorem frakcji, czerń zostaje czernią. Dzięki temu ten sam plik
+ *  źródłowy może kiedyś obsłużyć kilka frakcji, a zmiana koloru to jedna
+ *  liczba tutaj, nie przemalowywanie dwudziestu czterech obrazków. */
+const FIELD = { orcs: [0xb0, 0x30, 0x30], humans: [0x2a, 0x44, 0x74] };
+const FRAME = Math.round(SIZE * 0.055); // czarna ramka wokół każdej ściany
+
 const cache = new Map();
 const painted = []; // każda narysowana ściana, żeby dało się ją przemalować po doczytaniu pliku
 
@@ -73,26 +84,50 @@ function loadFaceArt(entry) {
   }
 }
 
+/** Przebarwia czarno-biały stempel na czarno-kolorowy, w miejscu na kanwie.
+ *
+ *  Nie progujemy jasności — mnożymy kolor pola przez jasność piksela, więc
+ *  biel wychodzi pełnym kolorem, czerń czernią, a wygładzone brzegi liter
+ *  zostają wygładzone. Progowanie dałoby poszarpane kontury przy tym rozmiarze
+ *  tekstury (256 px na ścianę, oglądane pod kątem). */
+function tintInPlace(ctx, x, y, w, h, [fr, fg, fb]) {
+  const img = ctx.getImageData(x, y, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+    d[i] = fr * lum;
+    d[i + 1] = fg * lum;
+    d[i + 2] = fb * lum;
+  }
+  ctx.putImageData(img, x, y);
+}
+
 function paintFace(entry) {
   const { ctx, label, faction, withLabel, unitTypeId } = entry;
   const art = artFor(label, faction, unitTypeId);
+  const field = FIELD[faction] ?? FIELD.humans;
+  const inner = SIZE - FRAME * 2;
+
+  // Czarna ramka wokół każdej ściany: najpierw czerń na całość, potem rysunek
+  // wpuszczony do środka. Ramka oddziela sąsiednie ściany kostki od siebie —
+  // bez niej dwa pola tego samego koloru zlewały się na krawędzi.
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, SIZE, SIZE);
 
   if (art) {
     // Namalowana ściana niesie SWOJĄ WŁASNĄ nazwę wpisaną w rysunek, więc nie
     // dokładamy do niej niczego — ani paska z tekstem, ani krzyża na Wounded.
     const side = Math.min(art.width, art.height);
-    ctx.drawImage(art, (art.width - side) / 2, (art.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+    ctx.drawImage(art, (art.width - side) / 2, (art.height - side) / 2, side, side,
+                  FRAME, FRAME, inner, inner);
+    tintInPlace(ctx, FRAME, FRAME, inner, inner, field);
     return;
   }
 
-  // Ściana jeszcze nienamalowana: białe tło i zwykły napis. Celowo bez ozdób —
-  // ma się od razu rzucać w oczy, czego brakuje, i sąsiadować bez zgrzytu
-  // z czarnym stemplem na bieli, w którym utrzymana jest grafika.
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(3, 3, SIZE - 6, SIZE - 6);
+  // Ściana jeszcze nienamalowana: samo pole i zwykły napis, bez ozdób — ma się
+  // rzucać w oczy, czego brakuje, ale kolorem trzymać się reszty kostki.
+  ctx.fillStyle = `rgb(${field[0]},${field[1]},${field[2]})`;
+  ctx.fillRect(FRAME, FRAME, inner, inner);
 
   // Ściana na wierzchu ma tabliczkę unoszącą się nad kostką, więc drugi raz
   // nazwy nie piszemy.
@@ -100,10 +135,10 @@ function paintFace(entry) {
 
   const fontSize = label.length > 7 ? 38 : 46;
   ctx.font = `700 ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
-  const lines = layoutText(ctx, label, SIZE - 48);
+  const lines = layoutText(ctx, label, inner - 24);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#111111';
+  ctx.fillStyle = '#000000';
   const startY = SIZE / 2 - ((lines.length - 1) * (fontSize + 6)) / 2;
   lines.forEach((line, i) => ctx.fillText(line, SIZE / 2, startY + i * (fontSize + 6)));
 }

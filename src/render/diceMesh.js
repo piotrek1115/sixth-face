@@ -49,6 +49,13 @@ function buildMaterials(unit, { withLabel = true } = {}) {
         map: labelTexture(f[axis], unit.faction, { withLabel, unitTypeId: unit.unitTypeId }),
         roughness: 0.6,
         metalness: 0.05,
+        // Scena renderuje sie w ACES, ktory przygasza i odbarwia nasycone
+        // kolory — czerwien stempla schodzila na kostce do ciemnego bordo,
+        // czyli grafika na planszy nie wygladala jak grafika w pliku. Sciany
+        // kostek sa plaskimi ilustracjami, nie powierzchniami fotograficznymi,
+        // wiec wypisujemy je z pominieciem tone mappingu. Reszta sceny
+        // (plansza, teren, sciany) zostaje w ACES bez zmian.
+        toneMapped: false,
       })
   );
 }
