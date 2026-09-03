@@ -33,8 +33,14 @@ function faceFromFilename(name) {
   return wantedBySlug.has(key) ? key : null;
 }
 
-/** PSD-a przeglądarka nie otworzy — konwersja przez sips (macOS, w systemie). */
-const isPsd = (path) => readFileSync(path, { length: 4 }).toString('latin1') === '8BPS';
+/** PSD-a przeglądarka nie otworzy — konwersja przez sips (macOS, w systemie).
+ *
+ *  Uwaga na pułapkę: readFileSync NIE przyjmuje opcji `length` (to API fs.read),
+ *  więc `readFileSync(p, { length: 4 }).toString()` zwracał CAŁY plik i test na
+ *  '8BPS' nigdy nie przechodził. PSD lądował skopiowany pod nazwą .jpg, a
+ *  przeglądarka po prostu go nie wyświetlała — bez błędu w konsoli, bez śladu
+ *  w logu, ściana po cichu zostawała pusta. */
+const isPsd = (path) => readFileSync(path).subarray(0, 4).toString('latin1') === '8BPS';
 
 const installed = [];
 for (const name of readdirSync(srcDir)) {

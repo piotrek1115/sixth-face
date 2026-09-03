@@ -19,7 +19,9 @@ grania wystarczy ten link.
 
 Sześć stron bez żargonu: pomysł, zasady, frakcje, stan prototypu i otwarte
 pytania. Do wysłania komuś, kto ma to ocenić.
-[Wersja PDF](https://piotrek1115.github.io/sixth-face/handoff/Sixth-Face-handoff.pdf).
+[Wersja PDF](https://piotrek1115.github.io/sixth-face/handoff/Sixth-Face-handoff.pdf) (9 stron).
+
+Grafika ścian: brief i szablony w [`art/README.md`](art/README.md), listy do odhaczenia w `art/uv/`.
 
 **Pierwsze 5 minut:**
 
