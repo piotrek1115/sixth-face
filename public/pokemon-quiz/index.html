@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="Quiz Pokémon: rozpoznaj Pokémona na obrazku. Cztery odpowiedzi, wszystkie generacje I–IX, dane z PokéAPI.">
+  <title>Pokémon Quiz | Zgadnij kto to!</title>
+  <style>
+    :root{color-scheme:dark;font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ink:#ecf4ff;--muted:#a9b8d2;--bg:#0b1020;--panel:#18233a;--line:#354765;--yellow:#ffe178;--green:#65e5ae;--red:#ff8093}
+    *{box-sizing:border-box}html{min-height:100%;background:var(--bg)}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 55% -12%,#273e6f 0,transparent 51%),radial-gradient(ellipse at -5% 90%,#17284b 0,transparent 35%),var(--bg);color:var(--ink)}
+    button,select{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid #ffe178;outline-offset:3px}
+    .app{width:min(100% - 32px,760px);margin:0 auto;padding:22px 0 30px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:11px}.ball{width:41px;height:41px;flex:none;border:4px solid #0a1222;border-radius:50%;background:linear-gradient(#ff6f6a 0 46%,#0a1222 46% 56%,#f3f9ff 56%);position:relative;box-shadow:0 6px 20px #0005}.ball:after{content:"";width:13px;height:13px;position:absolute;left:10px;top:10px;background:#f3f9ff;border:4px solid #0a1222;border-radius:50%}
+    h1{font-size:clamp(22px,5vw,31px);line-height:1.12;margin:0;letter-spacing:-.04em}.sub{font-size:13px;color:var(--muted);margin-top:4px}
+    .select-wrap{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13px;font-weight:700}.select-wrap select{max-width:175px;appearance:none;border:1px solid var(--line);border-radius:12px;padding:11px 28px 11px 12px;color:#fff;background:#1b2943;cursor:pointer}
+    .scoreboard{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:19px 0 13px}.stat{background:#141f35;border:1px solid #2c3d5a;border-radius:15px;padding:12px 14px;min-width:0}.stat .label{color:#a6b7d1;font-size:12px;display:block;margin-bottom:2px}.stat .value{font-size:23px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.035em}.stat:nth-child(2) .value{color:var(--green)}.stat:nth-child(3) .value{color:var(--yellow)}
+    .main{background:linear-gradient(180deg,#1b2b49 0%,#121d33 100%);border:1px solid #3b5075;border-radius:25px;padding:18px;box-shadow:0 22px 65px #0005;overflow:hidden}
+    .prompt{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 3px 12px}.prompt strong{font-size:18px;letter-spacing:-.02em}.pill{font-size:12px;color:#d3ddf0;background:#304261;border:1px solid #536887;padding:6px 10px;border-radius:30px}
+    .art{height:clamp(230px,45vh,330px);background:radial-gradient(circle at center,#3f587b 0%,#263b5b 42%,#192a47 74%);border:1px solid #486082;border-radius:19px;display:flex;justify-content:center;align-items:center;position:relative;overflow:hidden}
+    .art:before{content:"";position:absolute;width:246px;height:246px;border:3px solid #ffffff10;border-radius:50%;box-shadow:0 0 0 23px #ffffff08,0 0 0 55px #ffffff05}.art:after{content:"";position:absolute;inset:auto 20px 20px;height:1px;background:#ffffff0c}
+    .art img{display:block;position:relative;z-index:1;max-width:92%;height:96%;object-fit:contain;filter:drop-shadow(0 18px 10px #05102055);transition:opacity .16s ease,transform .25s ease}.art img.hidden{opacity:0;transform:scale(.96)}
+    .placeholder{position:absolute;z-index:0;font-size:92px;font-weight:900;color:#ffffff25;pointer-events:none}.loading-text{position:absolute;inset:auto 12px 16px;text-align:center;color:#d0dded;font-size:12px;z-index:2}
+    .message{min-height:40px;display:flex;align-items:center;justify-content:center;text-align:center;gap:8px;color:var(--muted);font-size:14px;font-weight:750;padding:8px 6px}
+    .answers{display:grid;grid-template-columns:1fr 1fr;gap:10px}.answer{position:relative;min-height:66px;border:2px solid #425777;border-radius:14px;color:#eef5ff;background:#243754;text-align:left;padding:12px 14px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:clamp(15px,2.4vw,18px);line-height:1.15;overflow-wrap:anywhere;transition:transform .1s,border-color .15s,background .15s}.answer:disabled{cursor:default}.answer:not(:disabled):hover{border-color:#b7cceb;background:#2e476d;transform:translateY(-2px)}.letter{display:inline-grid;place-items:center;width:28px;height:28px;flex:none;background:#435977;border-radius:9px;color:#e1eeff;font-size:13px}.answer.correct{background:#164735;border-color:var(--green);color:#dbfff1}.answer.correct .letter{background:#2e8665}.answer.wrong{background:#582b3a;border-color:var(--red);color:#ffeaf0}.answer.wrong .letter{background:#a44260}.answer.faded{opacity:.48}
+    .footer-row{display:flex;justify-content:center;padding-top:13px}.next{border:0;border-radius:13px;background:var(--yellow);color:#192336;font-weight:900;font-size:17px;padding:15px 25px;min-width:200px;box-shadow:0 7px 0 #ad8929;transition:transform .1s,box-shadow .1s}.next:hover{background:#fff0a9}.next:active{transform:translateY(4px);box-shadow:0 3px 0 #ad8929}.next[hidden],.answers[hidden],.footer-row[hidden]{display:none!important}
+    .small-print{color:#8192b1;font-size:11px;text-align:center;line-height:1.5;margin:16px 5px 0}.small-print a{color:#b5d6ff}.tip{color:#9fb2d2;text-align:center;font-size:12px;margin-top:13px}.error{color:#ffbbca}
+    .spark{position:absolute;pointer-events:none;font-size:28px;top:50%;left:50%;animation:pop .7s ease-out forwards;z-index:3}@keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}25%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.3)}}
+    @media(max-width:520px){.app{width:min(100% - 20px,760px);padding-top:13px}.main{padding:12px;border-radius:19px}.scoreboard{gap:7px;margin:14px 0 10px}.stat{padding:10px 9px;border-radius:12px}.stat .value{font-size:20px}.art{height:min(39vh,300px);min-height:206px}.answers{gap:8px}.answer{min-height:69px;padding:9px 8px;gap:7px;font-size:14px;border-radius:12px}.letter{width:24px;height:24px}.prompt strong{font-size:16px}.select-wrap{width:100%;justify-content:space-between}.select-wrap select{max-width:none;flex:1}.brand{gap:8px}.ball{width:35px;height:35px}.ball:after{left:7px;top:7px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><div class="ball" aria-hidden="true"></div><div><h1>Pokémon Quiz</h1><div class="sub">Zgadnij, kto jest na obrazku!</div></div></div>
+      <label class="select-wrap" for="generation">Generacja <select id="generation" aria-label="Wybierz generację Pokémonów">
+        <option value="all">🌍 Wszystkie (I–IX)</option>
+        <option value="1">I · Kanto</option><option value="2">II · Johto</option><option value="3">III · Hoenn</option>
+        <option value="4">IV · Sinnoh</option><option value="5">V · Unova</option><option value="6">VI · Kalos</option>
+        <option value="7">VII · Alola</option><option value="8">VIII · Galar</option><option value="9">IX · Paldea</option>
+      </select></label>
+    </header>
+    <section class="scoreboard" aria-label="Wyniki">
+      <div class="stat"><span class="label">Runda</span><span class="value" id="round">0</span></div>
+      <div class="stat"><span class="label">Punkty</span><span class="value" id="score">0</span></div>
+      <div class="stat"><span class="label">Seria 🔥</span><span class="value" id="streak">0</span></div>
+    </section>
+    <main class="main">
+      <div class="prompt"><strong>Kto to jest?</strong><span class="pill" id="pool-status">Gotowe do gry!</span></div>
+      <div class="art" id="art"><span class="placeholder" aria-hidden="true">?</span><img id="artwork" class="hidden" alt="Pokémon do rozpoznania" referrerpolicy="no-referrer"><div class="loading-text" id="loading-text">Wczytuję obrazek…</div></div>
+      <div class="message" id="message" role="status" aria-live="polite">Zaczynamy!</div>
+      <div class="answers" id="answers" hidden></div>
+      <div class="footer-row" id="footer-row" hidden><button type="button" class="next" id="next">Następny Pokémon →</button></div>
+    </main>
+    <div class="tip">Wybierz odpowiedź. Po sprawdzeniu kliknij „Następny Pokémon”.</div>
+    <div class="small-print">Pokédex: dane Pokémonów. Ilustracje z repozytorium <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a>. Ilustracje: repozytorium PokeAPI/sprites. Pokémon i postacie należą do ich właścicieli. Nieoficjalny quiz dla fanów. Lista 1025 gatunków jest dołączona do pliku; do wyświetlania ilustracji potrzebny jest internet.</div>
+  </div>
+<script>
+(() => {
+  'use strict';
+  const BUNDLED_NAMES = ["bulbasaur","ivysaur","venusaur","charmander","charmeleon","charizard","squirtle","wartortle","blastoise","caterpie","metapod","butterfree","weedle","kakuna","beedrill","pidgey","pidgeotto","pidgeot","rattata","raticate","spearow","fearow","ekans","arbok","pikachu","raichu","sandshrew","sandslash","nidoran-f","nidorina","nidoqueen","nidoran-m","nidorino","nidoking","clefairy","clefable","vulpix","ninetales","jigglypuff","wigglytuff","zubat","golbat","oddish","gloom","vileplume","paras","parasect","venonat","venomoth","diglett","dugtrio","meowth","persian","psyduck","golduck","mankey","primeape","growlithe","arcanine","poliwag","poliwhirl","poliwrath","abra","kadabra","alakazam","machop","machoke","machamp","bellsprout","weepinbell","victreebel","tentacool","tentacruel","geodude","graveler","golem","ponyta","rapidash","slowpoke","slowbro","magnemite","magneton","farfetchd","doduo","dodrio","seel","dewgong","grimer","muk","shellder","cloyster","gastly","haunter","gengar","onix","drowzee","hypno","krabby","kingler","voltorb","electrode","exeggcute","exeggutor","cubone","marowak","hitmonlee","hitmonchan","lickitung","koffing","weezing","rhyhorn","rhydon","chansey","tangela","kangaskhan","horsea","seadra","goldeen","seaking","staryu","starmie","mr-mime","scyther","jynx","electabuzz","magmar","pinsir","tauros","magikarp","gyarados","lapras","ditto","eevee","vaporeon","jolteon","flareon","porygon","omanyte","omastar","kabuto","kabutops","aerodactyl","snorlax","articuno","zapdos","moltres","dratini","dragonair","dragonite","mewtwo","mew","chikorita","bayleef","meganium","cyndaquil","quilava","typhlosion","totodile","croconaw","feraligatr","sentret","furret","hoothoot","noctowl","ledyba","ledian","spinarak","ariados","crobat","chinchou","lanturn","pichu","cleffa","igglybuff","togepi","togetic","natu","xatu","mareep","flaaffy","ampharos","bellossom","marill","azumarill","sudowoodo","politoed","hoppip","skiploom","jumpluff","aipom","sunkern","sunflora","yanma","wooper","quagsire","espeon","umbreon","murkrow","slowking","misdreavus","unown","wobbuffet","girafarig","pineco","forretress","dunsparce","gligar","steelix","snubbull","granbull","qwilfish","scizor","shuckle","heracross","sneasel","teddiursa","ursaring","slugma","magcargo","swinub","piloswine","corsola","remoraid","octillery","delibird","mantine","skarmory","houndour","houndoom","kingdra","phanpy","donphan","porygon2","stantler","smeargle","tyrogue","hitmontop","smoochum","elekid","magby","miltank","blissey","raikou","entei","suicune","larvitar","pupitar","tyranitar","lugia","ho-oh","celebi","treecko","grovyle","sceptile","torchic","combusken","blaziken","mudkip","marshtomp","swampert","poochyena","mightyena","zigzagoon","linoone","wurmple","silcoon","beautifly","cascoon","dustox","lotad","lombre","ludicolo","seedot","nuzleaf","shiftry","taillow","swellow","wingull","pelipper","ralts","kirlia","gardevoir","surskit","masquerain","shroomish","breloom","slakoth","vigoroth","slaking","nincada","ninjask","shedinja","whismur","loudred","exploud","makuhita","hariyama","azurill","nosepass","skitty","delcatty","sableye","mawile","aron","lairon","aggron","meditite","medicham","electrike","manectric","plusle","minun","volbeat","illumise","roselia","gulpin","swalot","carvanha","sharpedo","wailmer","wailord","numel","camerupt","torkoal","spoink","grumpig","spinda","trapinch","vibrava","flygon","cacnea","cacturne","swablu","altaria","zangoose","seviper","lunatone","solrock","barboach","whiscash","corphish","crawdaunt","baltoy","claydol","lileep","cradily","anorith","armaldo","feebas","milotic","castform","kecleon","shuppet","banette","duskull","dusclops","tropius","chimecho","absol","wynaut","snorunt","glalie","spheal","sealeo","walrein","clamperl","huntail","gorebyss","relicanth","luvdisc","bagon","shelgon","salamence","beldum","metang","metagross","regirock","regice","registeel","latias","latios","kyogre","groudon","rayquaza","jirachi","deoxys","turtwig","grotle","torterra","chimchar","monferno","infernape","piplup","prinplup","empoleon","starly","staravia","staraptor","bidoof","bibarel","kricketot","kricketune","shinx","luxio","luxray","budew","roserade","cranidos","rampardos","shieldon","bastiodon","burmy","wormadam","mothim","combee","vespiquen","pachirisu","buizel","floatzel","cherubi","cherrim","shellos","gastrodon","ambipom","drifloon","drifblim","buneary","lopunny","mismagius","honchkrow","glameow","purugly","chingling","stunky","skuntank","bronzor","bronzong","bonsly","mime-jr","happiny","chatot","spiritomb","gible","gabite","garchomp","munchlax","riolu","lucario","hippopotas","hippowdon","skorupi","drapion","croagunk","toxicroak","carnivine","finneon","lumineon","mantyke","snover","abomasnow","weavile","magnezone","lickilicky","rhyperior","tangrowth","electivire","magmortar","togekiss","yanmega","leafeon","glaceon","gliscor","mamoswine","porygon-z","gallade","probopass","dusknoir","froslass","rotom","uxie","mesprit","azelf","dialga","palkia","heatran","regigigas","giratina","cresselia","phione","manaphy","darkrai","shaymin","arceus","victini","snivy","servine","serperior","tepig","pignite","emboar","oshawott","dewott","samurott","patrat","watchog","lillipup","herdier","stoutland","purrloin","liepard","pansage","simisage","pansear","simisear","panpour","simipour","munna","musharna","pidove","tranquill","unfezant","blitzle","zebstrika","roggenrola","boldore","gigalith","woobat","swoobat","drilbur","excadrill","audino","timburr","gurdurr","conkeldurr","tympole","palpitoad","seismitoad","throh","sawk","sewaddle","swadloon","leavanny","venipede","whirlipede","scolipede","cottonee","whimsicott","petilil","lilligant","basculin","sandile","krokorok","krookodile","darumaka","darmanitan","maractus","dwebble","crustle","scraggy","scrafty","sigilyph","yamask","cofagrigus","tirtouga","carracosta","archen","archeops","trubbish","garbodor","zorua","zoroark","minccino","cinccino","gothita","gothorita","gothitelle","solosis","duosion","reuniclus","ducklett","swanna","vanillite","vanillish","vanilluxe","deerling","sawsbuck","emolga","karrablast","escavalier","foongus","amoonguss","frillish","jellicent","alomomola","joltik","galvantula","ferroseed","ferrothorn","klink","klang","klinklang","tynamo","eelektrik","eelektross","elgyem","beheeyem","litwick","lampent","chandelure","axew","fraxure","haxorus","cubchoo","beartic","cryogonal","shelmet","accelgor","stunfisk","mienfoo","mienshao","druddigon","golett","golurk","pawniard","bisharp","bouffalant","rufflet","braviary","vullaby","mandibuzz","heatmor","durant","deino","zweilous","hydreigon","larvesta","volcarona","cobalion","terrakion","virizion","tornadus","thundurus","reshiram","zekrom","landorus","kyurem","keldeo","meloetta","genesect","chespin","quilladin","chesnaught","fennekin","braixen","delphox","froakie","frogadier","greninja","bunnelby","diggersby","fletchling","fletchinder","talonflame","scatterbug","spewpa","vivillon","litleo","pyroar","flabebe","floette","florges","skiddo","gogoat","pancham","pangoro","furfrou","espurr","meowstic","honedge","doublade","aegislash","spritzee","aromatisse","swirlix","slurpuff","inkay","malamar","binacle","barbaracle","skrelp","dragalge","clauncher","clawitzer","helioptile","heliolisk","tyrunt","tyrantrum","amaura","aurorus","sylveon","hawlucha","dedenne","carbink","goomy","sliggoo","goodra","klefki","phantump","trevenant","pumpkaboo","gourgeist","bergmite","avalugg","noibat","noivern","xerneas","yveltal","zygarde","diancie","hoopa","volcanion","rowlet","dartrix","decidueye","litten","torracat","incineroar","popplio","brionne","primarina","pikipek","trumbeak","toucannon","yungoos","gumshoos","grubbin","charjabug","vikavolt","crabrawler","crabominable","oricorio","cutiefly","ribombee","rockruff","lycanroc","wishiwashi","mareanie","toxapex","mudbray","mudsdale","dewpider","araquanid","fomantis","lurantis","morelull","shiinotic","salandit","salazzle","stufful","bewear","bounsweet","steenee","tsareena","comfey","oranguru","passimian","wimpod","golisopod","sandygast","palossand","pyukumuku","type-null","silvally","minior","komala","turtonator","togedemaru","mimikyu","bruxish","drampa","dhelmise","jangmo-o","hakamo-o","kommo-o","tapu-koko","tapu-lele","tapu-bulu","tapu-fini","cosmog","cosmoem","solgaleo","lunala","nihilego","buzzwole","pheromosa","xurkitree","celesteela","kartana","guzzlord","necrozma","magearna","marshadow","poipole","naganadel","stakataka","blacephalon","zeraora","meltan","melmetal","grookey","thwackey","rillaboom","scorbunny","raboot","cinderace","sobble","drizzile","inteleon","skwovet","greedent","rookidee","corvisquire","corviknight","blipbug","dottler","orbeetle","nickit","thievul","gossifleur","eldegoss","wooloo","dubwool","chewtle","drednaw","yamper","boltund","rolycoly","carkol","coalossal","applin","flapple","appletun","silicobra","sandaconda","cramorant","arrokuda","barraskewda","toxel","toxtricity","sizzlipede","centiskorch","clobbopus","grapploct","sinistea","polteageist","hatenna","hattrem","hatterene","impidimp","morgrem","grimmsnarl","obstagoon","perrserker","cursola","sirfetchd","mr-rime","runerigus","milcery","alcremie","falinks","pincurchin","snom","frosmoth","stonjourner","eiscue","indeedee","morpeko","cufant","copperajah","dracozolt","arctozolt","dracovish","arctovish","duraludon","dreepy","drakloak","dragapult","zacian","zamazenta","eternatus","kubfu","urshifu","zarude","regieleki","regidrago","glastrier","spectrier","calyrex","wyrdeer","kleavor","ursaluna","basculegion","sneasler","overqwil","enamorus","sprigatito","floragato","meowscarada","fuecoco","crocalor","skeledirge","quaxly","quaxwell","quaquaval","lechonk","oinkologne","tarountula","spidops","nymble","lokix","pawmi","pawmo","pawmot","tandemaus","maushold","fidough","dachsbun","smoliv","dolliv","arboliva","squawkabilly","nacli","naclstack","garganacl","charcadet","armarouge","ceruledge","tadbulb","bellibolt","wattrel","kilowattrel","maschiff","mabosstiff","shroodle","grafaiai","bramblin","brambleghast","toedscool","toedscruel","klawf","capsakid","scovillain","rellor","rabsca","flittle","espathra","tinkatink","tinkatuff","tinkaton","wiglett","wugtrio","bombirdier","finizen","palafin","varoom","revavroom","cyclizar","orthworm","glimmet","glimmora","greavard","houndstone","flamigo","cetoddle","cetitan","veluza","dondozo","tatsugiri","annihilape","clodsire","farigiraf","dudunsparce","kingambit","great-tusk","scream-tail","brute-bonnet","flutter-mane","slither-wing","sandy-shocks","iron-treads","iron-bundle","iron-hands","iron-jugulis","iron-moth","iron-thorns","frigibax","arctibax","baxcalibur","gimmighoul","gholdengo","wo-chien","chien-pao","ting-lu","chi-yu","roaring-moon","iron-valiant","koraidon","miraidon","walking-wake","iron-leaves","dipplin","poltchageist","sinistcha","okidogi","munkidori","fezandipiti","ogerpon","archaludon","hydrapple","gouging-fire","raging-bolt","iron-boulder","iron-crown","terapagos","pecharunt"];
+  const ART = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/';
+  const SPRITE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+  const CDN_ART = 'https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/official-artwork/';
+  const CDN_SPRITE = 'https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/';
+  const RANGES = { 1:[1,151], 2:[152,251], 3:[252,386], 4:[387,493], 5:[494,649], 6:[650,721], 7:[722,809], 8:[810,905], 9:[906,1025] };
+  const special = {
+    'nidoran-f':'Nidoran♀','nidoran-m':'Nidoran♂','mr-mime':'Mr. Mime',
+    'mime-jr':'Mime Jr.','mr-rime':'Mr. Rime','type-null':'Type: Null',
+    'farfetchd':'Farfetch’d','sirfetchd':'Sirfetch’d','flabebe':'Flabébé',
+    'porygon-z':'Porygon-Z','ho-oh':'Ho-Oh','jangmo-o':'Jangmo-o',
+    'hakamo-o':'Hakamo-o','kommo-o':'Kommo-o','wo-chien':'Wo-Chien',
+    'chien-pao':'Chien-Pao','ting-lu':'Ting-Lu','chi-yu':'Chi-Yu',
+    'tapu-koko':'Tapu Koko','tapu-lele':'Tapu Lele','tapu-bulu':'Tapu Bulu',
+    'tapu-fini':'Tapu Fini','great-tusk':'Great Tusk','scream-tail':'Scream Tail',
+    'brute-bonnet':'Brute Bonnet','flutter-mane':'Flutter Mane','slither-wing':'Slither Wing',
+    'sandy-shocks':'Sandy Shocks','iron-treads':'Iron Treads','iron-bundle':'Iron Bundle',
+    'iron-hands':'Iron Hands','iron-jugulis':'Iron Jugulis','iron-moth':'Iron Moth',
+    'iron-thorns':'Iron Thorns','roaring-moon':'Roaring Moon','iron-valiant':'Iron Valiant',
+    'walking-wake':'Walking Wake','iron-leaves':'Iron Leaves','gouging-fire':'Gouging Fire',
+    'raging-bolt':'Raging Bolt','iron-boulder':'Iron Boulder','iron-crown':'Iron Crown'
+  };
+  const el = name => document.getElementById(name);
+  const generation = el('generation'), img = el('artwork'), art = el('art'), loadingText = el('loading-text'),
+    answers = el('answers'), message = el('message'), next = el('next'), footer = el('footer-row'), poolStatus = el('pool-status');
+  let pokemon = [], pool = [], deck = [], selected = null, locked = true, completed = 0, points = 0, streak = 0, currentRound = 0, requestId = 0;
+  const nameOf = n => special[n] || n.split('-').map(s => s.charAt(0).toUpperCase()+s.slice(1)).join(' ');
+  const randomInt = n => Math.floor(Math.random() * n);
+  function shuffle(a){let b=a.slice();for(let i=b.length-1;i>0;i--){const j=randomInt(i+1);[b[i],b[j]]=[b[j],b[i]]}return b}
+  function updateStats(){el('round').textContent=String(completed+1);el('score').textContent=String(points);el('streak').textContent=String(streak)}
+  function setMessage(t,cls=''){message.textContent=t;message.className='message'+(cls?' '+cls:'')}
+  function updatePool(){const val=generation.value;if(val==='all')pool=pokemon.slice();else {const [lo,hi]=RANGES[val];pool=pokemon.filter(p=>p.id>=lo&&p.id<=hi)} deck=shuffle(pool)}
+  function showLoading(t){loadingText.textContent=t;loadingText.hidden=false;img.classList.add('hidden')}
+  function resetGame(){points=0;streak=0;completed=0;currentRound=0;updatePool();showQuestion()}
+  function buildOptions(correct){
+    let candidatePool=pool.filter(p=>p.id!==correct.id);
+    if(candidatePool.length<3)candidatePool=pokemon.filter(p=>p.id!==correct.id);
+    const wrong=shuffle(candidatePool).slice(0,3);
+    const options=shuffle([correct,...wrong]);
+    answers.replaceChildren();
+    for(let i=0;i<options.length;i++){
+      const p=options[i], b=document.createElement('button');b.type='button';b.className='answer';b.dataset.id=String(p.id);
+      const l=document.createElement('span');l.className='letter';l.textContent='ABCD'[i];
+      const n=document.createElement('span');n.textContent=nameOf(p.name);b.append(l,n);b.disabled=true;
+      b.addEventListener('click',()=>choose(p.id));answers.appendChild(b)
+    }
+    answers.hidden=false;
+  }
+  function showQuestion(){
+    if(pool.length<4){answers.hidden=true;footer.hidden=false;next.textContent='Spróbuj ponownie';setMessage('Nie udało się przygotować pytań.','error');return}
+    if(!deck.length)deck=shuffle(pool);
+    selected=deck.pop();locked=true;currentRound=++requestId;
+    footer.hidden=true;next.textContent='Następny Pokémon →';buildOptions(selected);updateStats();
+    poolStatus.textContent=(generation.value==='all'?'Wszystkie generacje':'Generacja '+['','I','II','III','IV','V','VI','VII','VIII','IX'][Number(generation.value)])+' · '+pool.length+' Pokémonów';
+    setMessage('Przyjrzyj się obrazkowi i wybierz nazwę 👀');showLoading('Ładuję obrazek…');
+    let fallbackStage=0;const token=currentRound;
+    img.onload=()=>{if(token!==currentRound)return;img.classList.remove('hidden');loadingText.hidden=true;locked=false;for(const b of answers.children)b.disabled=false};
+    img.onerror=()=>{if(token!==currentRound)return;
+      const sources=[CDN_ART+selected.id+'.png', SPRITE+selected.id+'.png', CDN_SPRITE+selected.id+'.png'];
+      if(fallbackStage<sources.length)img.src=sources[fallbackStage++];
+      else{showLoading('🌐 Obrazki są blokowane');setMessage('Ten podgląd blokuje obrazki z internetu. Pobierz plik i otwórz go w Safari lub Chrome.','error');footer.hidden=false;next.textContent='Spróbuj innego Pokémona →'}
+    };
+    img.removeAttribute('src');img.src=ART+selected.id+'.png';
+  }
+  function celebrate(){
+    for(let i=0;i<9;i++){
+      const s=document.createElement('span');s.className='spark';s.textContent=['⭐','✨','🌟'][i%3];
+      s.style.setProperty('--dx',(Math.random()*380-190)+'px');s.style.setProperty('--dy',(Math.random()*230-165)+'px');
+      art.appendChild(s);setTimeout(()=>s.remove(),750)
+    }
+  }
+  function choose(id){
+    if(locked||!selected)return;
+    locked=true;completed++;
+    const correct=id===selected.id;
+    if(correct){points++;streak++;setMessage('Brawo! To '+nameOf(selected.name)+'! 🎉');celebrate()}
+    else{streak=0;setMessage('Prawidłowa odpowiedź: '+nameOf(selected.name)+' 💡')}
+    for(const b of answers.children){b.disabled=true;const x=Number(b.dataset.id);
+      if(x===selected.id)b.classList.add('correct');else if(x===id)b.classList.add('wrong');else b.classList.add('faded')}
+    el('round').textContent=String(completed);el('score').textContent=String(points);el('streak').textContent=String(streak);
+    footer.hidden=false;next.focus({preventScroll:true});
+  }
+  generation.addEventListener('change',()=>{if(pokemon.length)resetGame()});
+  next.addEventListener('click',()=>{if(!pokemon.length)load();else showQuestion()});
+  document.addEventListener('keydown', e=>{
+    if(e.target instanceof HTMLSelectElement)return;
+    if(!locked && /^[1-4a-dA-D]$/.test(e.key)){
+      const index='1234'.indexOf(e.key)>=0?Number(e.key)-1:'abcd'.indexOf(e.key.toLowerCase());
+      const b=answers.children[index];if(b&&!b.disabled)b.click()
+    }
+  });
+  function load(){
+    // Komplet 1025 gatunków jest zapisany w HTML. Gra nie wymaga fetch() na starcie.
+    // Obrazki pochodzą z publicznego repozytorium PokeAPI/sprites.
+    pokemon=BUNDLED_NAMES.map((name,index)=>({id:index+1,name}));
+    resetGame();
+  }
+  load();
+})();
+</script>
+</body>
+</html>
